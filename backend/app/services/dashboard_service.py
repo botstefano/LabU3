@@ -32,9 +32,9 @@ class DashboardService:
         ]
 
         # Debug logging
-        logger.info(f"Total facturas anio: {len(facturas_anio)}")
+        logger.warning(f"Total facturas anio: {len(facturas_anio)}")
         for f in facturas_anio:
-            logger.info(f"Factura {f.serie}-{f.numero}: estado={f.estado}, str_estado={str(f.estado)}")
+            logger.warning(f"Factura {f.serie}-{f.numero}: estado={f.estado}, str_estado={str(f.estado)}")
 
         facturas_mes_actual = [f for f in facturas_anio if f.fecha_emision.month == hoy.month]
         total_facturado_mes = round(sum(float(f.total) for f in facturas_mes_actual), 2)
@@ -44,7 +44,7 @@ class DashboardService:
         total_morosidad = round(sum(f.saldo_pendiente for f in cartera_vencida), 2)
 
         facturas_pendientes = [f for f in facturas_anio if str(f.estado) in ("PENDIENTE", "VENCIDA")]
-        logger.info(f"Facturas pendientes: {len(facturas_pendientes)}")
+        logger.warning(f"Facturas pendientes: {len(facturas_pendientes)}")
 
         por_mes = defaultdict(lambda: {"total": 0.0, "igv": 0.0})
         for factura in facturas_anio:
