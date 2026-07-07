@@ -10,9 +10,9 @@ from app.db.database import Base
 
 
 class UserRole(str, enum.Enum):
-    ADMINISTRADOR = "administrador"
-    CONTADOR = "contador"
-    VENDEDOR = "vendedor"
+    ADMINISTRADOR = "administrador"  # lowercase to match DB enum
+    CONTADOR = "contador"  # lowercase to match DB enum
+    VENDEDOR = "vendedor"  # lowercase to match DB enum
 
 
 class User(Base):
