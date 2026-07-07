@@ -10,10 +10,10 @@ from app.db.database import Base
 
 
 class EstadoFactura(str, enum.Enum):
-    PENDIENTE = "pendiente"
-    PAGADA = "pagada"
-    VENCIDA = "vencida"
-    ANULADA = "anulada"
+    PENDIENTE = "PENDIENTE"
+    PAGADA = "PAGADA"
+    VENCIDA = "VENCIDA"
+    ANULADA = "ANULADA"
 
 
 class Invoice(Base):
