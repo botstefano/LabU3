@@ -25,7 +25,7 @@ class DashboardService:
         hoy = date.today()
         inicio_anio = date(hoy.year, 1, 1)
         facturas_anio = [
-            f for f in self.invoice_repo.list_all_in_range(inicio_anio, hoy) if f.estado != EstadoFactura.ANULADA
+            f for f in self.invoice_repo.list_all_in_range(inicio_anio, hoy) if str(f.estado) != "ANULADA"
         ]
 
         facturas_mes_actual = [f for f in facturas_anio if f.fecha_emision.month == hoy.month]
@@ -35,7 +35,7 @@ class DashboardService:
         cartera_vencida = self.collections_service.cartera_vencida()
         total_morosidad = round(sum(f.saldo_pendiente for f in cartera_vencida), 2)
 
-        facturas_pendientes = [f for f in facturas_anio if f.estado in (EstadoFactura.PENDIENTE, EstadoFactura.VENCIDA)]
+        facturas_pendientes = [f for f in facturas_anio if str(f.estado) in ("PENDIENTE", "VENCIDA")]
 
         por_mes = defaultdict(lambda: {"total": 0.0, "igv": 0.0})
         for factura in facturas_anio:
