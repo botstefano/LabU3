@@ -27,8 +27,9 @@ class DashboardService:
     def resumen(self) -> DashboardResponse:
         hoy = date.today()
         inicio_anio = date(hoy.year, 1, 1)
+        fin_anio = date(hoy.year, 12, 31)
         facturas_anio = [
-            f for f in self.invoice_repo.list_all_in_range(inicio_anio, hoy) if f.estado.value != "ANULADA"
+            f for f in self.invoice_repo.list_all_in_range(inicio_anio, fin_anio) if f.estado.value != "ANULADA"
         ]
 
         # Debug logging
