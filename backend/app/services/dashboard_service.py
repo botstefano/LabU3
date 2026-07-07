@@ -28,13 +28,13 @@ class DashboardService:
         hoy = date.today()
         inicio_anio = date(hoy.year, 1, 1)
         facturas_anio = [
-            f for f in self.invoice_repo.list_all_in_range(inicio_anio, hoy) if str(f.estado) != "ANULADA"
+            f for f in self.invoice_repo.list_all_in_range(inicio_anio, hoy) if f.estado.value != "ANULADA"
         ]
 
         # Debug logging
         logger.warning(f"Total facturas anio: {len(facturas_anio)}")
         for f in facturas_anio:
-            logger.warning(f"Factura {f.serie}-{f.numero}: estado={f.estado}, str_estado={str(f.estado)}")
+            logger.warning(f"Factura {f.serie}-{f.numero}: estado={f.estado}, value={f.estado.value}")
 
         facturas_mes_actual = [f for f in facturas_anio if f.fecha_emision.month == hoy.month]
         total_facturado_mes = round(sum(float(f.total) for f in facturas_mes_actual), 2)
@@ -43,7 +43,7 @@ class DashboardService:
         cartera_vencida = self.collections_service.cartera_vencida()
         total_morosidad = round(sum(f.saldo_pendiente for f in cartera_vencida), 2)
 
-        facturas_pendientes = [f for f in facturas_anio if str(f.estado) in ("PENDIENTE", "VENCIDA")]
+        facturas_pendientes = [f for f in facturas_anio if f.estado.value in ("PENDIENTE", "VENCIDA")]
         logger.warning(f"Facturas pendientes: {len(facturas_pendientes)}")
 
         por_mes = defaultdict(lambda: {"total": 0.0, "igv": 0.0})
