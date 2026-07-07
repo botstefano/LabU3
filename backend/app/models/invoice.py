@@ -14,6 +14,7 @@ class EstadoFactura(str, enum.Enum):
     PAGADA = "PAGADA"
     VENCIDA = "VENCIDA"
     ANULADA = "ANULADA"
+    # Force redeploy
 
 
 class Invoice(Base):
