@@ -1,6 +1,7 @@
 """Servicio de negocio para las métricas del dashboard analítico."""
 from collections import defaultdict
 from datetime import date
+import logging
 
 from sqlalchemy.orm import Session
 
@@ -8,6 +9,8 @@ from app.models.invoice import EstadoFactura
 from app.repositories.invoice_repository import InvoiceRepository
 from app.schemas.dashboard import DashboardResponse, FacturacionMensual, TopCliente
 from app.services.collections_service import CollectionsService
+
+logger = logging.getLogger(__name__)
 
 MESES = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -28,6 +31,11 @@ class DashboardService:
             f for f in self.invoice_repo.list_all_in_range(inicio_anio, hoy) if str(f.estado) != "ANULADA"
         ]
 
+        # Debug logging
+        logger.info(f"Total facturas anio: {len(facturas_anio)}")
+        for f in facturas_anio:
+            logger.info(f"Factura {f.serie}-{f.numero}: estado={f.estado}, str_estado={str(f.estado)}")
+
         facturas_mes_actual = [f for f in facturas_anio if f.fecha_emision.month == hoy.month]
         total_facturado_mes = round(sum(float(f.total) for f in facturas_mes_actual), 2)
         igv_mes = round(sum(float(f.igv) for f in facturas_mes_actual), 2)
@@ -36,6 +44,7 @@ class DashboardService:
         total_morosidad = round(sum(f.saldo_pendiente for f in cartera_vencida), 2)
 
         facturas_pendientes = [f for f in facturas_anio if str(f.estado) in ("PENDIENTE", "VENCIDA")]
+        logger.info(f"Facturas pendientes: {len(facturas_pendientes)}")
 
         por_mes = defaultdict(lambda: {"total": 0.0, "igv": 0.0})
         for factura in facturas_anio:
