@@ -49,4 +49,9 @@ app.include_router(settings_router.router)
 
 @app.get("/api/health", tags=["Sistema"])
 def health_check():
-    return {"status": "ok", "environment": settings.environment}
+    return {
+        "status": "ok", 
+        "environment": settings.environment,
+        "cors_origins": settings.cors_origins,
+        "cors_origins_list": settings.cors_origins_list
+    }
