@@ -1,14 +1,11 @@
 import uuid
 from datetime import date
 from typing import Optional
-import logging
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.invoice import EstadoFactura, Invoice
-
-logger = logging.getLogger(__name__)
 
 
 class InvoiceRepository:
@@ -62,6 +59,4 @@ class InvoiceRepository:
         query = select(Invoice).where(
             Invoice.fecha_emision >= fecha_desde, Invoice.fecha_emision <= fecha_hasta
         )
-        result = self.db.scalars(query).all()
-        logger.warning(f"list_all_in_range: desde={fecha_desde}, hasta={fecha_hasta}, count={len(result)}")
-        return result
+        return self.db.scalars(query).all()
