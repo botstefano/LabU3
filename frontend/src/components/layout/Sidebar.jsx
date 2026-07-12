@@ -7,6 +7,7 @@ import {
   BarChart3,
   Settings,
   ShieldCheck,
+  BrainCircuit,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
@@ -15,6 +16,7 @@ const ITEMS = [
   { to: "/clientes", label: "Clientes", icon: Users, roles: null },
   { to: "/facturas", label: "Facturación", icon: FileText, roles: null },
   { to: "/cobranzas", label: "Cobranzas", icon: Landmark, roles: null },
+  { to: "/riesgo", label: "Riesgo de Morosidad", icon: BrainCircuit, roles: null },
   { to: "/reportes", label: "Reportes", icon: BarChart3, roles: null },
   { to: "/usuarios", label: "Usuarios", icon: ShieldCheck, roles: ["administrador"] },
   { to: "/configuracion", label: "Configuración", icon: Settings, roles: ["administrador"] },

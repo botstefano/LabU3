@@ -1,0 +1,108 @@
+Actúa como ingeniero de software senior. Necesito un script de seed de datos de
+demostración para el sistema de facturación electrónica (FastAPI + SQLAlchemy +
+PostgreSQL/Supabase), que simule meses de operación real para poder entrenar y
+demostrar el módulo de scoring de riesgo de morosidad (ML con scikit-learn) que ya
+existe en app/ml/ y app/services/risk_service.py.
+
+Antes de escribir código, revisa backend/scripts/seed_admin.py (ya existe en el
+proyecto) para seguir el mismo patrón de conexión a la base de datos, imports y
+estilo de script ejecutable por línea de comandos. Revisa también los modelos reales
+en app/models/ (Client, Invoice, InvoiceItem, Payment, User) y sus campos exactos
+antes de asumir nombres.
+
+OBJETIVO
+Crear backend/scripts/seed_demo_data.py que, al ejecutarse, genere datos ficticios
+pero realistas y variados, para que:
+1. El listado de clientes en Riesgo de Morosidad muestre los tres niveles (bajo,
+   medio, alto).
+2. El endpoint POST /api/risk/train tenga suficientes muestras (al menos ~20-30
+   clientes con historial) para entrenar el modelo real y no caer en el heurístico.
+3. El dashboard y los reportes también se vean poblados (varios meses de
+   facturación).
+
+REQUISITOS DEL SCRIPT
+
+1. Debe ser idempotente en la medida de lo posible: si ya existen clientes con los
+   números de documento que va a crear, debe omitirlos o preguntar antes de
+   duplicar (evita romper la constraint unique de numero_documento). Ofrece un flag
+   --reset opcional que, si se pasa, borra primero los datos de demo previamente
+   generados (identifícalos con un prefijo o marca reconocible, por ejemplo nombres
+   que empiecen con "Demo -", para no tocar datos reales de producción).
+
+2. Requiere que ya exista al menos un usuario administrador en la base de datos
+   (reutiliza el que crea seed_admin.py); si no existe ninguno, el script debe
+   avisar y terminar con un mensaje claro pidiendo correr seed_admin.py primero.
+   Usa ese usuario como created_by / registrado_por en las facturas y pagos que
+   cree.
+
+3. Genera aproximadamente 30 clientes ficticios peruanos con datos coherentes:
+   - Mezcla de tipo_documento DNI (8 dígitos) y RUC (11 dígitos, empezando en 10 o
+     20 según sea persona natural o empresa).
+   - nombre_razon_social con nombres/empresas peruanas variadas y realistas
+     (usa una lista propia de nombres, no repitas el mismo nombre).
+   - email y telefono con formato válido.
+   - Marca estos clientes de demo de forma identificable (por ejemplo, prefijo
+     "Demo - " en el nombre) para poder limpiarlos después con --reset.
+
+4. Para cada cliente, genera un número variable de facturas (entre 2 y 8) con
+   fechas de emisión distribuidas en los últimos 6 meses (usa fechas pasadas
+   reales, no de hoy en adelante, ya que la lógica de negocio de creación de
+   facturas vía API no permite fecha_vencimiento en el pasado — como este script
+   trabaja directo con el ORM/SQLAlchemy, sí puede insertar fechas históricas
+   libremente, respetando igual todas las reglas de integridad del esquema).
+   Cada factura debe tener 1-4 items con descripciones y montos variados, y debe
+   calcularse correctamente subtotal/igv/total (usa la misma tasa de IGV que usa
+   el resto del sistema, revisa app/core/config.py o el servicio de facturación
+   existente para no hardcodear un valor distinto).
+
+5. Simula tres perfiles de comportamiento de pago, distribuidos entre los
+   clientes aproximadamente así:
+   - ~40% "buen pagador": todas sus facturas resueltas están pagadas antes o
+     máximo un par de días después del vencimiento.
+   - ~35% "pagador intermedio": mezcla de facturas pagadas a tiempo, pagadas con
+     mora moderada (10-30 días tarde) y alguna vencida sin pagar aún.
+   - ~25% "mal pagador": mayoría de facturas pagadas muy tarde (30-90 días) o
+     directamente vencidas y sin pagar, para que el modelo tenga ejemplos claros
+     de la clase de alto riesgo.
+   Dentro de cada perfil, deja también 1-2 facturas "pendiente" (dentro de plazo,
+   sin pagar aún, con fecha_vencimiento futura) para que no todas las facturas
+   estén resueltas.
+
+6. Para las facturas que sí se pagan, crea el registro de Payment correspondiente
+   con fecha_pago coherente con el perfil de mora del cliente (a tiempo, con
+   retraso moderado o con retraso alto según el perfil), y con monto igual al
+   total de la factura (pago completo) para que quede en estado "pagada". Para
+   las facturas que deben quedar en mora sin pagar, no crees Payment y deja el
+   estado correcto (usa la misma lógica de negocio o reutiliza el método existente
+   que recalcula pendiente -> vencida según la fecha de vencimiento, en vez de
+   asignar el estado a mano si ya existe esa función en el proyecto).
+
+7. Respeta la numeración correlativa de facturas por serie tal como lo hace el
+   resto del sistema (revisa InvoiceRepository.next_numero o el método
+   equivalente ya existente, no reinventes la numeración).
+
+8. Al finalizar, imprime en consola un resumen: cantidad de clientes creados,
+   cantidad de facturas por estado (pendiente/pagada/vencida), y un recordatorio
+   de que ahora se puede llamar a POST /api/risk/train para entrenar el modelo
+   con estos datos.
+
+9. El script debe poder ejecutarse con:
+   python scripts/seed_demo_data.py
+   y opcionalmente:
+   python scripts/seed_demo_data.py --reset
+
+CRITERIOS DE ACEPTACIÓN
+- No rompe ninguna constraint de la base de datos (documentos únicos, foreign
+  keys, numeración de facturas).
+- Después de ejecutarlo, GET /api/risk/clients debe mostrar clientes en los tres
+  niveles de riesgo (bajo, medio, alto).
+- Después de ejecutarlo, POST /api/risk/train debe entrenar el modelo
+  exitosamente (entrenado=true) en vez de caer al heurístico por falta de datos.
+- No modifica ni depende de datos reales de producción; todo lo que crea es
+  claramente identificable como datos de demostración.
+- Sigue el estilo y las convenciones ya usadas en seed_admin.py y en el resto del
+  proyecto (imports, manejo de sesión de base de datos, etc.).
+
+Antes de generar el código final, revisa los archivos reales del proyecto
+(modelos, servicios, repositorios) para confirmar nombres exactos de campos,
+métodos y constantes, en vez de asumirlos.

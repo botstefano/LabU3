@@ -1,0 +1,141 @@
+Actúa como un ingeniero de software senior. Voy a pedirte que agregues un módulo de
+Inteligencia Artificial al sistema de facturación electrónica existente (backend en
+FastAPI con arquitectura por capas: routers -> services -> repositories -> models/schemas,
+y frontend en React + Vite + Tailwind). NO uses ninguna API externa de IA (ni OpenAI ni
+Anthropic): todo debe ejecutarse localmente con scikit-learn.
+
+OBJETIVO
+Implementar un módulo de "Scoring de Riesgo de Morosidad": para cada cliente, calcular
+la probabilidad de que incurra en mora, combinando:
+1. Un modelo de Machine Learning (regresión logística de scikit-learn) entrenado con el
+   historial real de facturas y pagos de la base de datos.
+2. Un score heurístico de respaldo (sin ML) para cuando aún no hay suficientes datos
+   históricos para entrenar un modelo confiable (cold start).
+
+Antes de escribir código, localiza y respeta las convenciones ya usadas en el proyecto:
+nombres de modelos (Client, Invoice, InvoiceItem, Payment, User), nombres de campos
+(fecha_vencimiento, fecha_emision, estado, tipo_documento, numero_documento,
+nombre_razon_social, etc.), el patrón de capas (repository -> service -> router), el
+manejo de excepciones (AppError/NotFoundError en core/exceptions.py) y el sistema de
+roles (administrador, contador, vendedor) con la dependencia require_roles en
+routers/deps.py.
+
+REQUISITOS BACKEND
+
+1. Dependencias: agrega a requirements.txt: scikit-learn, joblib, numpy (versiones
+   estables recientes compatibles entre sí).
+
+2. Nuevo paquete app/ml/ con:
+   a) features.py: función compute_client_features(client, invoices, payments_by_invoice)
+      que, a partir de las facturas de un cliente que estén en estado "pagada" o
+      "vencida" (ignora "pendiente" dentro de plazo y "anulada"), calcule:
+        - pct_facturas_vencidas: proporción de facturas resueltas que terminaron vencidas
+        - pct_pagos_tardios: proporción de facturas pagadas cuyo último pago fue
+          posterior a la fecha de vencimiento
+        - dias_mora_promedio: promedio de días de mora (para vencidas: hoy - vencimiento;
+          para pagadas con pago tardío: fecha del pago - vencimiento)
+        - monto_promedio_factura
+        - cantidad_facturas (resueltas)
+        - antiguedad_dias (desde el registro del cliente)
+      Debe devolver None si el cliente no tiene ninguna factura resuelta (cliente nuevo).
+      También calcula una etiqueta binaria (label) para entrenamiento: 1 si
+      pct_facturas_vencidas > 0.34 o pct_pagos_tardios > 0.34, si no 0.
+      Mantén una lista FEATURE_NAMES con el orden fijo de las variables y una función
+      features_to_vector(features) que devuelva la lista en ese orden.
+
+   b) risk_model.py: 
+        - Pipeline de scikit-learn: StandardScaler + LogisticRegression(class_weight="balanced").
+        - train_model(dataset): recibe una lista de objetos con .features y .label,
+          requiere un mínimo de ~12 muestras etiquetadas y ambas clases presentes; si no
+          se cumple, devuelve un resultado con entrenado=False y un mensaje explicativo
+          (no lanza excepción). Si se cumple, separa train/test, entrena, calcula
+          accuracy y f1, y luego reentrena con el dataset completo antes de persistir el
+          modelo con joblib en app/ml/model_artifacts/risk_model.joblib.
+        - predict_proba(features): carga el modelo persistido (si existe) y devuelve la
+          probabilidad de la clase "alto riesgo"; si no hay modelo entrenado, devuelve None.
+        - model_disponible(): bool indicando si existe el archivo del modelo.
+      Agrega app/ml/model_artifacts/ al .gitignore (los .joblib no deben versionarse) con
+      un .gitkeep para conservar la carpeta.
+
+3. app/schemas/risk.py: 
+   - RiskFactors (los 6 features numéricos)
+   - ClientRiskResponse (client_id, cliente_nombre, score float 0-1, nivel: "bajo"/
+     "medio"/"alto", metodo: "modelo"/"heuristica"/"sin_historial", factores opcional)
+   - TrainRiskResponse (entrenado, n_muestras, n_clase_alto_riesgo, accuracy opcional,
+     f1 opcional, mensaje, modelo_disponible)
+
+4. app/services/risk_service.py:
+   - heuristic_score(features): combinación ponderada transparente, por ejemplo
+     0.5*pct_facturas_vencidas + 0.3*pct_pagos_tardios + 0.2*min(dias_mora_promedio/60, 1),
+     acotada entre 0 y 1.
+   - nivel_desde_score(score): <0.33 "bajo", <0.66 "medio", si no "alto".
+   - RiskService con métodos:
+       train(): recorre TODOS los clientes con al menos una factura, construye el
+         dataset con compute_client_features, llama a train_model y devuelve
+         TrainRiskResponse.
+       score_all_clients(): calcula el score de cada cliente (usa el modelo si existe,
+         si no cae al heurístico; si el cliente no tiene historial, score fijo bajo tipo
+         0.15 con metodo="sin_historial") y devuelve la lista ordenada por score
+         descendente.
+       score_client(client_id): igual que arriba pero para un solo cliente; lanza
+         NotFoundError si no existe.
+   - IMPORTANTE: antes de calcular features, invoca la lógica ya existente que actualiza
+     facturas "pendiente" vencidas a estado "vencida" (revisa si ya existe algo como
+     InvoiceService.actualizar_estados_vencidos() en el proyecto y reutilízalo), para que
+     el cálculo de riesgo sea consistente con el estado real de la cartera.
+
+5. Repositorios: agrega los métodos que falten para listar TODAS las facturas de un
+   cliente sin paginar (list_all_by_client) y todos los clientes sin paginar (list_all),
+   revisando primero si ya existen para no duplicar código.
+
+6. app/routers/risk_router.py (prefix "/api/risk", tag "Riesgo de Morosidad (IA)"):
+   - POST /train -> solo administrador o contador (require_roles)
+   - GET /clients -> cualquier usuario autenticado, lista completa ordenada por riesgo
+   - GET /clients/{client_id} -> cualquier usuario autenticado
+   Regístralo en app/main.py junto a los demás routers.
+
+7. Tests (pytest, siguiendo el patrón de fixtures ya existente en app/tests/conftest.py
+   con SQLite en memoria): 
+   - cliente sin historial devuelve metodo="sin_historial"
+   - cliente con factura vencida (backdateando fecha_vencimiento directamente en la
+     sesión de BD del fixture, ya que el endpoint de creación de facturas no permite
+     fechas pasadas) devuelve metodo="heuristica" y factores coherentes
+   - POST /train con pocos datos devuelve entrenado=False sin lanzar error
+   - GET /clients devuelve la lista ordenada de mayor a menor score
+   - un usuario con rol "vendedor" recibe 403 al intentar entrenar
+
+REQUISITOS FRONTEND
+
+1. src/services/riskService.js con train(), listClients(), getClient(id), siguiendo el
+   mismo patrón que los demás archivos de src/services/ (usa la instancia de axios ya
+   configurada con interceptor JWT).
+
+2. Nueva página src/pages/Risk.jsx:
+   - Card superior explicando que el modelo se entrena localmente sin APIs externas, con
+     botón "Entrenar modelo" visible solo para administrador/contador (usa el hook de
+     auth ya existente para leer el rol del usuario), que muestra el resultado del
+     entrenamiento (mensaje, exactitud, f1 si entrenó).
+   - Card con tabla de todos los clientes ordenados por score: nombre, score en %,
+     badge de nivel de riesgo con colores (bajo=verde/brand, medio=ámbar, alto=rojo),
+     método usado, % de facturas vencidas históricas y días de mora promedio.
+   - Usa los mismos componentes UI ya existentes del proyecto (Card, Button,
+     LoadingState, EmptyState) en vez de crear nuevos si ya existen equivalentes.
+
+3. Agrega la entrada "Riesgo de Morosidad" en el sidebar/navegación existente (visible
+   para todos los roles, sin restricción, igual que Dashboard/Clientes) y la ruta
+   protegida correspondiente en el router de la aplicación (por ejemplo /riesgo).
+
+CRITERIOS DE ACEPTACIÓN
+- El backend arranca sin errores y /docs muestra los 3 nuevos endpoints bajo el tag
+  "Riesgo de Morosidad (IA)".
+- pytest pasa, incluyendo los tests nuevos, sin romper ningún test existente.
+- El frontend compila (npm run build) sin errores y la nueva página es accesible desde
+  el sidebar.
+- No se agrega ninguna dependencia ni llamada a APIs de IA externas (todo el cómputo es
+  local con scikit-learn).
+- No modifiques la lógica de negocio existente (facturación, cobranzas, dashboard) más
+  allá de lo estrictamente necesario para reutilizar utilidades ya existentes.
+
+Antes de generar código, revisa la estructura real del proyecto (nombres exactos de
+archivos y funciones) y ajusta las referencias de este prompt a lo que efectivamente
+exista, en vez de asumir nombres.

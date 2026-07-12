@@ -5,6 +5,7 @@ import Clients from "./pages/Clients";
 import Invoices from "./pages/Invoices";
 import InvoiceDetail from "./pages/InvoiceDetail";
 import Collections from "./pages/Collections";
+import Risk from "./pages/Risk";
 import Reports from "./pages/Reports";
 import SettingsPage from "./pages/Settings";
 import Users from "./pages/Users";
@@ -52,6 +53,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Collections />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/riesgo"
+        element={
+          <ProtectedRoute>
+            <Risk />
           </ProtectedRoute>
         }
       />

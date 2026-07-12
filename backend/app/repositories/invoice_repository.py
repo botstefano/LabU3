@@ -1,6 +1,7 @@
+
 import uuid
 from datetime import date
-from typing import Optional
+from typing import Optional, List
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -55,8 +56,13 @@ class InvoiceRepository:
         query = select(Invoice).where(Invoice.estado.in_([EstadoFactura.PENDIENTE, EstadoFactura.VENCIDA]))
         return self.db.scalars(query).all()
 
-    def list_all_in_range(self, fecha_desde: date, fecha_hasta: date):
+    def list_all_in_range(self, fecha_desde: date, fecha_hasta: date) -> List[Invoice]:
         query = select(Invoice).where(
             Invoice.fecha_emision >= fecha_desde, Invoice.fecha_emision <= fecha_hasta
         )
         return self.db.scalars(query).all()
+
+    def list_all_by_client(self, client_id: uuid.UUID) -> List[Invoice]:
+        query = select(Invoice).where(Invoice.client_id == client_id).order_by(Invoice.fecha_emision.desc())
+        return self.db.scalars(query).all()
+

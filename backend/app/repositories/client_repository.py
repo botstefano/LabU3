@@ -1,5 +1,6 @@
+
 import uuid
-from typing import Optional
+from typing import Optional, List
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
@@ -17,7 +18,7 @@ class ClientRepository:
     def get_by_documento(self, numero_documento: str) -> Optional[Client]:
         return self.db.scalar(select(Client).where(Client.numero_documento == numero_documento))
 
-    def list(self, search: Optional[str] = None, skip: int = 0, limit: int = 50):
+    def list(self, search: Optional[str] = None, skip: int = 0, limit: int = 50) -> List[Client]:
         query = select(Client)
         if search:
             like = f"%{search}%"
@@ -25,6 +26,10 @@ class ClientRepository:
                 or_(Client.nombre_razon_social.ilike(like), Client.numero_documento.ilike(like))
             )
         query = query.order_by(Client.created_at.desc()).offset(skip).limit(limit)
+        return self.db.scalars(query).all()
+
+    def list_all(self) -> List[Client]:
+        query = select(Client).order_by(Client.created_at.desc())
         return self.db.scalars(query).all()
 
     def create(self, client: Client) -> Client:
@@ -41,3 +46,4 @@ class ClientRepository:
     def delete(self, client: Client) -> None:
         self.db.delete(client)
         self.db.commit()
+
