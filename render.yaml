@@ -17,7 +17,7 @@ services:
       - key: JWT_EXPIRE_MINUTES
         value: "480"
       - key: CORS_ORIGINS
-        sync: false
+        value: "https://facturacion-frontend-nb9w.onrender.com,http://localhost:5173,http://localhost:3000"
       - key: EMPRESA_RAZON_SOCIAL
         value: "Mi Empresa S.A.C."
       - key: EMPRESA_RUC
