@@ -2,13 +2,13 @@
 from typing import List
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, UploadFile, File
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.models.user import User, UserRole
 from app.routers.deps import get_current_user, require_roles
-from app.schemas.risk import ClientRiskResponse, TrainRiskResponse
+from app.schemas.risk import ClientRiskResponse, TrainRiskResponse, TrainingStatus
 from app.services.risk_service import RiskService
 
 router = APIRouter(prefix="/api/risk", tags=["Riesgo de Morosidad (IA)"])
@@ -20,6 +20,34 @@ def train_model(
     _: User = Depends(require_roles(UserRole.ADMINISTRADOR, UserRole.CONTADOR)),
 ):
     return RiskService(db).train()
+
+
+@router.post("/upload-dataset", response_model=TrainRiskResponse)
+def upload_dataset(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(UserRole.ADMINISTRADOR, UserRole.CONTADOR)),
+):
+    service = RiskService(db)
+    
+    content = file.file.read().decode('utf-8')
+    
+    if file.filename.endswith('.csv'):
+        dataset = service.parse_dataset_from_csv(content)
+    elif file.filename.endswith('.json'):
+        dataset = service.parse_dataset_from_json(content)
+    else:
+        raise ValueError("Formato no soportado. Use CSV o JSON.")
+    
+    return service.train_with_dataset(dataset)
+
+
+@router.get("/training-status", response_model=TrainingStatus)
+def get_training_status(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return RiskService(db).get_training_status()
 
 
 @router.get("/clients", response_model=List[ClientRiskResponse])
