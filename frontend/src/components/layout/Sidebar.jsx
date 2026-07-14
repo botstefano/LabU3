@@ -33,7 +33,7 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex flex-1 flex-col gap-1">
-        {ITEMS.filter((item) => !item.roles || item.roles.includes(user?.rol)).map(({ to, label, icon: Icon }) => (
+        {ITEMS.filter((item) => !item.roles || item.roles.includes(user?.rol?.toLowerCase())).map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}

@@ -179,7 +179,7 @@ export default function Risk() {
   const fileInputRef = useRef(null);
   const pollingRef = useRef(null);
 
-  const canTrain = user?.rol === "administrador" || user?.rol === "contador";
+  const canTrain = user?.rol?.toLowerCase() === "administrador" || user?.rol?.toLowerCase() === "contador";
 
   const loadClients = () => {
     setLoading(true);
