@@ -20,8 +20,17 @@ h1, h2, h3, h4 {
   height: 8px;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: #cbd5e1;
+  background-color: #64748b;
   border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background-color: #1e293b;
+}
+.dark ::-webkit-scrollbar-track {
+  background-color: #1e293b;
+}
+.light ::-webkit-scrollbar-track {
+  background-color: #e2e8f0;
 }
 
 :focus-visible {

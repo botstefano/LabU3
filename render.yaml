@@ -26,6 +26,8 @@ services:
         value: "Lima, Peru"
       - key: IGV_PORCENTAJE
         value: "18"
+      - key: MISTRAL_API_KEY
+        sync: false
 
   - type: web
     name: facturacion-frontend

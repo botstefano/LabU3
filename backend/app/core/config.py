@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     empresa_direccion: str = "Lima, Peru"
     igv_porcentaje: float = 18.0
 
+    mistral_api_key: str = ""
+
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
 
     @property

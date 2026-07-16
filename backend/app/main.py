@@ -19,6 +19,7 @@ from app.routers import (
     reports_router,
     settings_router,
     risk_router,
+    chat_router,
 )
 
 settings = get_settings()
@@ -48,6 +49,7 @@ app.include_router(dashboard_router.router)
 app.include_router(reports_router.router)
 app.include_router(settings_router.router)
 app.include_router(risk_router.router)
+app.include_router(chat_router.router)
 
 
 @app.get("/api/health", tags=["Sistema"])
