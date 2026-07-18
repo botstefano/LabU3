@@ -426,7 +426,10 @@ def _compute_wilcoxon_tests(best_f1_scores: List[float], model_results: Dict[str
 
 def _compute_mcnemar_tests(y_true: np.ndarray, predictions: Dict[str, np.ndarray], best_model: str) -> Dict[str, Any]:
     """Compute McNemar's test for binary classifier comparison"""
-    from statsmodels.stats.contingency_tables import mcnemar
+    try:
+        from statsmodels.stats.contingency_tables import mcnemar
+    except ImportError:
+        return {"error": "statsmodels not installed - McNemar's test requires statsmodels package"}
     
     mcnemar_tests = {}
     
