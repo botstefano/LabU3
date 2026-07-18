@@ -564,8 +564,8 @@ export default function Risk() {
                       </>
                     )}
                   </Button>
-                  <Button 
-                    onClick={() => window.open('http://localhost:8501', '_blank')} 
+                  <Button
+                    onClick={() => window.open(import.meta.env.VITE_STREAMLIT_URL || 'http://localhost:8501', '_blank')}
                     variant="primary"
                   >
                     Abrir Streamlit ML

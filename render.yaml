@@ -37,6 +37,8 @@ services:
     envVars:
       - key: VITE_API_URL
         sync: false
+      - key: VITE_STREAMLIT_URL
+        value: https://facturacion-ml.onrender.com
     routes:
       - type: rewrite
         source: /*
