@@ -21,6 +21,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
       <Dialog as="div" className="relative z-50" onClose={onClose}>
         <Transition.Child
           as={Fragment}
+          show={isOpen}
           enter="ease-out duration-300"
           enterFrom="opacity-0"
           enterTo="opacity-100"
@@ -35,6 +36,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
           <div className="flex min-h-full items-center justify-center p-4 text-center">
             <Transition.Child
               as={Fragment}
+              show={isOpen}
               enter="ease-out duration-300"
               enterFrom="opacity-0 scale-95"
               enterTo="opacity-100 scale-100"
