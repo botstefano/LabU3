@@ -287,6 +287,13 @@ def main():
         color: white;
         margin: 0.5rem 0;
     }
+    .stDataFrame {
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+    }
+    div[data-testid="stVerticalBlock"] > div[style*="flex-direction: column"] > div > div > div {
+        margin-bottom: 1rem;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -303,11 +310,16 @@ def main():
 
         st.markdown("### 📊 Navegación")
 
+        if 'page' not in st.session_state:
+            st.session_state.page = "🏠 Inicio"
+
         page = st.radio(
             "Selecciona una sección:",
             ["🏠 Inicio", "📁 Cargar Datos", "📈 Análisis Dataset", "🤖 Entrenamiento", "📋 Resultados"],
-            label_visibility="collapsed"
+            label_visibility="collapsed",
+            index=["🏠 Inicio", "📁 Cargar Datos", "📈 Análisis Dataset", "🤖 Entrenamiento", "📋 Resultados"].index(st.session_state.page)
         )
+        st.session_state.page = page
 
         st.divider()
 
@@ -386,6 +398,7 @@ def main():
         """)
 
         if st.button("Comenzar →", type="primary", use_container_width=True):
+            st.session_state.page = "📁 Cargar Datos"
             st.rerun()
 
     elif page == "📁 Cargar Datos":
@@ -458,6 +471,7 @@ def main():
         if dataset:
             st.success("🎯 Datos cargados exitosamente. Puedes proceder al análisis del dataset.")
             if st.button("Ir a Análisis de Dataset →", type="primary", use_container_width=True):
+                st.session_state.page = "📈 Análisis Dataset"
                 st.rerun()
 
     elif page == "📈 Análisis Dataset":
@@ -466,6 +480,7 @@ def main():
         if 'dataset' not in st.session_state or st.session_state.dataset is None:
             st.warning("⚠️ Primero debes cargar los en la sección 'Cargar Datos'.")
             if st.button("Ir a Cargar Datos", use_container_width=True):
+                st.session_state.page = "📁 Cargar Datos"
                 st.rerun()
             return
 
@@ -485,7 +500,8 @@ def main():
             for f in dataset
         ])
 
-        # Summary metrics
+        # Summary metrics container
+        st.markdown("### 📊 Resumen de Datos")
         col1, col2, col3, col4 = st.columns(4)
         with col1:
             st.metric("Total Muestras", len(dataset_df))
@@ -499,22 +515,25 @@ def main():
 
         st.divider()
 
-        # Class distribution and statistics
+        # Class distribution and statistics container
+        st.markdown("### 📈 Distribución y Estadísticas")
         col1, col2 = st.columns(2)
         with col1:
-            st.subheader("📊 Distribución de Clases")
+            st.markdown("#### Distribución de Clases")
             class_counts = dataset_df['label'].value_counts()
             fig = px.pie(values=class_counts.values, names=['Bajo Riesgo', 'Alto Riesgo'] if 0 in class_counts.index else ['Alto Riesgo'], hole=0.3)
             fig.update_layout(title="Balance de Clases")
             st.plotly_chart(fig, use_container_width=True, key="class_distribution")
 
         with col2:
-            st.subheader("📈 Estadísticas Descriptivas")
+            st.markdown("#### Estadísticas Descriptivas")
             st.dataframe(dataset_df.describe(), use_container_width=True)
 
-        # Feature distributions
         st.divider()
-        st.subheader("📉 Distribución de Features por Clase")
+
+        # Feature distributions container
+        st.markdown("### 📉 Análisis de Features")
+        st.markdown("#### Distribución por Feature")
         feature_cols = ['pct_facturas_vencidas', 'pct_pagos_tardios', 'dias_mora_promedio',
                        'monto_promedio_factura', 'cantidad_facturas', 'antiguedad_dias']
 
@@ -525,9 +544,10 @@ def main():
                           title=f"Distribución de {selected_feature} por Clase")
         st.plotly_chart(fig, use_container_width=True, key="feature_distribution")
 
-        # Boxplots
         st.divider()
-        st.subheader("📦 Boxplots Comparativos por Clase")
+
+        # Boxplots container
+        st.markdown("#### Boxplots Comparativos")
         fig = go.Figure()
         for i, feature in enumerate(feature_cols):
             fig.add_trace(go.Box(
@@ -546,6 +566,7 @@ def main():
 
         st.divider()
         if st.button("Ir a Entrenamiento de Modelos →", type="primary", use_container_width=True):
+            st.session_state.page = "🤖 Entrenamiento"
             st.rerun()
 
     elif page == "🤖 Entrenamiento":
@@ -554,6 +575,7 @@ def main():
         if 'dataset' not in st.session_state or st.session_state.dataset is None:
             st.warning("⚠️ Primero debes cargar los datos en la sección 'Cargar Datos'.")
             if st.button("Ir a Cargar Datos", use_container_width=True):
+                st.session_state.page = "📁 Cargar Datos"
                 st.rerun()
             return
 
@@ -591,6 +613,7 @@ def main():
         if 'result' in st.session_state:
             st.success("✅ Modelo entrenado. Ve a la sección 'Resultados' para ver el análisis completo.")
             if st.button("Ver Resultados →", type="secondary", use_container_width=True):
+                st.session_state.page = "📋 Resultados"
                 st.rerun()
 
     elif page == "📋 Resultados":
@@ -599,14 +622,16 @@ def main():
         if 'result' not in st.session_state:
             st.warning("⚠️ Primero debes entrenar los modelos en la sección 'Entrenamiento'.")
             if st.button("Ir a Entrenamiento", use_container_width=True):
+                st.session_state.page = "🤖 Entrenamiento"
                 st.rerun()
             return
 
         result = st.session_state.result
         dataset_size = st.session_state.dataset_size
         data_source = st.session_state.data_source
+        dataset = st.session_state.dataset
 
-        # Best model summary
+        # Best model summary container
         st.markdown("### 🏆 Mejor Modelo")
 
         col1, col2, col3 = st.columns(3)
@@ -623,7 +648,8 @@ def main():
 
         st.divider()
 
-        # PDF download
+        # PDF download container
+        st.markdown("### 📄 Exportación de Reportes")
         if REPORTLAB_AVAILABLE:
             pdf_buffer = generate_pdf_report(result, dataset_size, data_source)
             if pdf_buffer:
@@ -640,8 +666,8 @@ def main():
 
         st.divider()
 
-        # Comparison table
-        st.markdown("### 📊 Tabla Comparativa")
+        # Comparison table container
+        st.markdown("### 📊 Comparación de Modelos")
         results_df = pd.DataFrame([
             {
                 "Modelo": r.model_name,
@@ -658,7 +684,7 @@ def main():
 
         st.divider()
 
-        # Statistical tests
+        # Statistical tests container
         if result.statistical_tests:
             st.markdown("### 🔬 Tests Estadísticos (t-test pareado)")
             tests_df = pd.DataFrame([
@@ -674,7 +700,7 @@ def main():
 
         st.divider()
 
-        # Correlation heatmap
+        # Correlation heatmap container
         if result.correlation_matrix:
             st.markdown("### 🔗 Matriz de Correlación de Features")
 
@@ -691,7 +717,7 @@ def main():
 
         st.divider()
 
-        # ROC curves
+        # ROC curves container
         if result.roc_curves:
             st.markdown("### 📈 Curvas ROC Comparativas")
 
@@ -725,7 +751,7 @@ def main():
 
         st.divider()
 
-        # Feature importance comparison
+        # Feature importance comparison container
         st.markdown("### 🎯 Comparación de Feature Importance")
 
         feature_importance_data = []
@@ -744,7 +770,7 @@ def main():
 
         st.divider()
 
-        # Cross-validation details
+        # Cross-validation details container
         st.markdown("### 🔄 Detalles de Cross-Validation")
         st.info(f"Configuración: Stratified K-Fold con n_splits ajustado dinámicamente según tamaño de dataset")
 
@@ -779,7 +805,7 @@ def main():
 
         st.divider()
 
-        # Model-specific details
+        # Model-specific details container
         st.markdown("### 🔍 Detalles Individuales por Modelo")
 
         for result_item in result.results:
@@ -827,7 +853,7 @@ def main():
 
         st.divider()
 
-        # Error analysis
+        # Error analysis container
         st.markdown("### ⚠️ Análisis de Errores")
 
         # Compute predictions for error analysis
@@ -905,7 +931,7 @@ def main():
 
         st.divider()
 
-        # Performance summary
+        # Performance summary container
         st.markdown("### 📊 Resumen de Performance")
         perf_summary = []
         for result_item in result.results:
