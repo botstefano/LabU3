@@ -394,8 +394,14 @@ def compare_models(dataset: List[ClientFeatures]) -> CompareModelsResult:
     # Compute ROC curves
     roc_curves = _compute_roc_curves(X, y, models_config)
 
-    # 10-fold stratified cross-validation
-    cv = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+    # Adjust n_splits based on dataset size
+    min_class_size = min(np.sum(y == 0), np.sum(y == 1))
+    n_splits = min(10, min_class_size)
+    if n_splits < 2:
+        n_splits = 2  # Minimum 2 splits for cross-validation
+
+    # Stratified cross-validation
+    cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
     
     results = []
     model_results = {}  # Store results for statistical tests
