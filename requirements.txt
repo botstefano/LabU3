@@ -10,3 +10,16 @@ psycopg2-binary
 python-dotenv
 pydantic
 pydantic-settings
+fastapi
+uvicorn
+python-jose[cryptography]
+passlib
+bcrypt
+python-multipart
+reportlab
+openpyxl
+alembic
+httpx
+email-validator
+scipy
+joblib
