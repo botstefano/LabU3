@@ -402,6 +402,7 @@ export default function Risk() {
   const { theme } = useTheme();
 
   const canTrain = user?.rol?.toLowerCase() === "administrador" || user?.rol?.toLowerCase() === "contador";
+  const showTrainingUI = false; // Training moved to Streamlit
 
   const loadClients = () => {
     setLoading(true);
@@ -546,6 +547,25 @@ export default function Risk() {
     <AppLayout title={t("risk.title")}>
       <div className="flex flex-col gap-6">
         {canTrain && (
+          <Card
+            title="Entrenamiento de Modelos ML"
+            action={
+              <Button
+                onClick={() => window.open(import.meta.env.VITE_STREAMLIT_URL || 'http://localhost:8501', '_blank')}
+                variant="primary"
+              >
+                <BrainCircuit size={16} className="mr-2" />
+                Abrir Streamlit ML
+              </Button>
+            }
+          >
+            <p className={`text-sm ${theme === "dark" ? "text-ink-300" : "text-ink-600"}`}>
+              Entrena y compara modelos de machine learning en Streamlit. Los modelos entrenados se usarán automáticamente para alertas de riesgo y scoring de clientes.
+            </p>
+          </Card>
+        )}
+
+        {canTrain && showTrainingUI && (
           <>
             <Card
               title="Comparación de Modelos"
