@@ -283,97 +283,127 @@ def main():
         initial_sidebar_state="expanded"
     )
 
-    # Custom CSS for professional styling
+    # Custom CSS for professional styling with dark mode support
     st.markdown("""
     <style>
     :root {
-        --color-primary: #2c3e50;
-        --color-secondary: #34495e;
-        --color-accent: #3498db;
-        --color-success: #27ae60;
-        --color-warning: #f39c12;
-        --color-danger: #c0392b;
-        --color-light: #ecf0f1;
-        --color-dark: #2c3e50;
-        --color-text: #333333;
-        --color-text-muted: #7f8c8d;
-        --border-radius: 8px;
-        --spacing-sm: 0.5rem;
-        --spacing-md: 1rem;
-        --spacing-lg: 2rem;
+        --app-primary: #1e88e5;
+        --app-primary-dark: #0c447c;
+        --app-success-bg: #e6f4ea;
+        --app-success-text: #1e7e34;
+        --app-warning-bg: #fff4e5;
+        --app-warning-text: #a05a00;
+        --app-danger-bg: #fdecea;
+        --app-danger-text: #a32d2d;
+        --app-card-bg: #f6f8fb;
+        --app-text-secondary: #5f6368;
+        --app-border: rgba(0,0,0,0.08);
     }
-    
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --app-primary: #4fa3ea;
+            --app-primary-dark: #85b7eb;
+            --app-success-bg: rgba(30,126,52,0.18);
+            --app-success-text: #6fcf87;
+            --app-warning-bg: rgba(160,90,0,0.18);
+            --app-warning-text: #f0b45a;
+            --app-danger-bg: rgba(163,45,45,0.2);
+            --app-danger-text: #f09595;
+            --app-card-bg: rgba(255,255,255,0.05);
+            --app-text-secondary: #b0b3b8;
+            --app-border: rgba(255,255,255,0.12);
+        }
+    }
+
     .main-header {
-        font-size: 2rem;
+        font-size: 2.2rem;
         font-weight: 700;
-        color: var(--color-primary);
-        margin-bottom: var(--spacing-sm);
+        color: var(--app-primary);
+        margin-bottom: 0.25rem;
     }
-    
     .sub-header {
-        font-size: 1rem;
-        color: var(--color-text-muted);
-        margin-bottom: var(--spacing-lg);
+        font-size: 1.05rem;
+        color: var(--app-text-secondary);
+        margin-bottom: 1.25rem;
     }
-    
     .section-header {
-        font-size: 1.5rem;
+        font-size: 1.6rem;
         font-weight: 600;
-        color: var(--color-primary);
-        margin-top: var(--spacing-lg);
-        margin-bottom: var(--spacing-md);
-        border-bottom: 2px solid var(--color-accent);
-        padding-bottom: var(--spacing-sm);
+        margin-top: 0.5rem;
+        margin-bottom: 1rem;
+        border-bottom: 2px solid var(--app-primary);
+        padding-bottom: 0.5rem;
     }
-    
     .metric-card {
-        background: var(--color-light);
-        padding: var(--spacing-md);
-        border-radius: var(--border-radius);
-        border-left: 4px solid var(--color-accent);
-        margin: var(--spacing-sm) 0;
+        background: var(--app-card-bg);
+        border: 1px solid var(--app-border);
+        border-radius: 10px;
+        padding: 1rem 1.1rem;
+        margin: 0 0 0.5rem 0;
     }
-    
-    .metric-card.success {
-        border-left-color: var(--color-success);
+    .metric-card .label {
+        font-size: 0.8rem;
+        color: var(--app-text-secondary);
+        margin-bottom: 0.2rem;
     }
-    
-    .metric-card.warning {
-        border-left-color: var(--color-warning);
+    .metric-card .value {
+        font-size: 1.6rem;
+        font-weight: 700;
     }
-    
-    .metric-card.danger {
-        border-left-color: var(--color-danger);
+    .metric-card .hint {
+        font-size: 0.78rem;
+        color: var(--app-text-secondary);
+        margin-top: 0.2rem;
     }
-    
-    .info-box {
-        background: var(--color-light);
-        padding: var(--spacing-md);
-        border-radius: var(--border-radius);
-        border-left: 4px solid var(--color-accent);
-        margin: var(--spacing-sm) 0;
-    }
-    
-    .feature-description {
+    .status-pill {
+        display: inline-block;
+        padding: 0.25rem 0.7rem;
+        border-radius: 999px;
         font-size: 0.85rem;
-        color: var(--color-text-muted);
-        margin-top: var(--spacing-sm);
+        font-weight: 600;
     }
-    
-    .methodology-box {
-        background: #f8f9fa;
-        padding: var(--spacing-md);
-        border-radius: var(--border-radius);
-        border: 1px solid #dee2e6;
-        margin: var(--spacing-md) 0;
+    .status-good { background: var(--app-success-bg); color: var(--app-success-text); }
+    .status-warn { background: var(--app-warning-bg); color: var(--app-warning-text); }
+    .status-bad  { background: var(--app-danger-bg); color: var(--app-danger-text); }
+
+    .info-card {
+        background: var(--app-card-bg);
+        border: 1px solid var(--app-border);
+        border-radius: 10px;
+        padding: 1rem 1.2rem;
+        margin-bottom: 0.75rem;
     }
-    
-    .stDataFrame {
-        margin-top: var(--spacing-md);
-        margin-bottom: var(--spacing-md);
+    .feature-desc {
+        font-size: 0.85rem;
+        color: var(--app-text-secondary);
+        margin-top: -0.4rem;
+        margin-bottom: 0.6rem;
     }
     </style>
     """, unsafe_allow_html=True)
+
+    # Helper functions for UI components
+    def metric_card(label, value, hint=None):
+        hint_html = f"<div class='hint'>{hint}</div>" if hint else ""
+        st.markdown(
+            f"""<div class="metric-card">
+                    <div class="label">{label}</div>
+                    <div class="value">{value}</div>
+                    {hint_html}
+                </div>""",
+            unsafe_allow_html=True
+        )
+
+    def status_pill(text, kind="good"):
+        css_class = {"good": "status-good", "warn": "status-warn", "bad": "status-bad"}.get(kind, "status-good")
+        st.markdown(f'<span class="status-pill {css_class}">{text}</span>', unsafe_allow_html=True)
+
+    def f1_status(f1):
+        if f1 >= 0.85:
+            return "Excelente", "good"
+        if f1 >= 0.7:
+            return "Bueno", "warn"
+        return "Moderado", "bad"
 
     # Sidebar navigation
     with st.sidebar:
@@ -447,57 +477,68 @@ def main():
 
         st.divider()
 
-        # KPIs in grid layout
-        col1, col2, col3, col4 = st.columns(4)
+        # KPIs in grid layout using metric_card
+        col1, col2, col3 = st.columns(3)
 
         with col1:
-            st.container(border=True).metric("🤖 Modelos", "5", "ML algorithms")
+            metric_card("Modelos comparados", "5", "Logistic · RF · SVM · GB · MLP")
             
         with col2:
-            st.container(border=True).metric("📊 Features", "6", "Client features")
+            metric_card("Features utilizadas", "6", "Comportamiento de pago del cliente")
             
         with col3:
-            st.container(border=True).metric("📈 Métricas", "5", "Evaluation metrics")
-            
-        with col4:
-            st.container(border=True).metric("📄 Exportación", "PDF", "Professional reports")
+            if 'result' in st.session_state:
+                metric_card("Último F1-score", f"{st.session_state.result.best_f1:.3f}",
+                            st.session_state.result.best_model)
+            else:
+                metric_card("Último F1-score", "—", "Aún no se ha entrenado un modelo")
 
         st.divider()
 
-        # Features and Models in grid
-        col1, col2 = st.columns(2)
+        # Info cards with app.py design
+        left, right = st.columns([1.1, 1])
+        with left:
+            st.markdown("#### 🚀 Qué resuelve este sistema")
+            st.markdown("""
+            <div class="info-card">
+            La cobranza reactiva es costosa: identificar con anticipación qué clientes
+            tienen alta probabilidad de caer en mora permite priorizar seguimiento y
+            ajustar condiciones de crédito antes de que ocurra el impago. Este sistema
+            entrena y compara 5 algoritmos de clasificación sobre el historial de pagos
+            de cada cliente, y selecciona automáticamente el de mejor desempeño.
+            </div>
+            """, unsafe_allow_html=True)
 
-        with col1:
-            st.container(border=True).markdown("""
-            ### 📁 Gestión de Datos
-            - **Carga CSV:** Importación de datasets iniciales
-            - **Entrenamiento Incremental:** Actualización desde base de datos
-            - **Análisis EDA:** Estadísticas descriptivas y distribuciones
-            - **Validación:** Detección de datos faltantes y outliers
-            """)
+            st.markdown("#### 📊 Flujo de trabajo")
+            steps = st.columns(4)
+            step_labels = ["1. Cargar datos", "2. Analizar dataset", "3. Entrenar modelos", "4. Ver resultados"]
+            for col, label in zip(steps, step_labels):
+                with col:
+                    st.markdown(f"<div class='info-card' style='text-align:center; font-size:0.85rem;'>{label}</div>",
+                                unsafe_allow_html=True)
 
-        with col2:
-            st.container(border=True).markdown("""
-            ### 🤖 Modelos ML Comparados
-            - **Logistic Regression:** Baseline interpretable
-            - **Random Forest:** Ensemble de árboles de decisión
-            - **SVM:** Máquinas de vectores de soporte
-            - **Gradient Boosting:** Boosting secuencial
-            - **MLP:** Red neuronal multicapa
-            """)
+        with right:
+            st.markdown("#### 🤖 Modelos disponibles")
+            st.markdown("""
+            <div class="info-card">
+            <b>Logistic Regression</b> — baseline lineal e interpretable<br>
+            <b>Random Forest</b> — ensamble robusto a outliers<br>
+            <b>Support Vector Machine</b> — bueno en fronteras no lineales<br>
+            <b>Gradient Boosting</b> — alto desempeño en tabular data<br>
+            <b>Neural Network (MLP)</b> — captura interacciones complejas
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.markdown("#### 📐 Metodología")
+            st.markdown("""
+            <div class="info-card">
+            Validación cruzada estratificada (Stratified K-Fold) con número de folds
+            ajustado al tamaño del dataset, comparación con tests estadísticos
+            pareados (t-test), y selección automática por F1-score.
+            </div>
+            """, unsafe_allow_html=True)
 
         st.divider()
-
-        # Workflow
-        st.container(border=True).markdown("""
-        ### � Flujo de Trabajo
-        
-        1. **📁 Cargar Datos** → Seleccionar fuente (CSV o base de datos)
-        2. **📈 Análisis Dataset** → Explorar estadísticas y distribuciones de features
-        3. **🤖 Entrenamiento** → Comparar 5 modelos con cross-validation estratificada
-        4. **📋 Resultados** → Analizar métricas, seleccionar mejor modelo y exportar reportes
-        """)
-
         if st.button("Comenzar →", type="primary", use_container_width=True):
             st.session_state.page = "📁 Cargar Datos"
             st.rerun()
@@ -613,18 +654,25 @@ def main():
             "antiguedad_dias": "Antigüedad del cliente en días desde su primera factura. Clientes más antiguos pueden tener patrones de pago más estables."
         }
 
-        # Summary KPIs in grid
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.container(border=True).metric("📊 Total Muestras", len(dataset_df))
-        with col2:
-            st.container(border=True).metric("✅ Bajo Riesgo", len(dataset_df[dataset_df['label'] == 0]))
-        with col3:
-            st.container(border=True).metric("⚠️ Alto Riesgo", len(dataset_df[dataset_df['label'] == 1]))
-        with col4:
-            balance = len(dataset_df[dataset_df['label'] == 1]) / len(dataset_df) * 100
-            balance_color = "success" if 40 <= balance <= 60 else "warning" if 20 <= balance <= 80 else "danger"
-            st.container(border=True).metric("⚖️ Balance", f"{balance:.1f}%")
+        # Summary KPIs in grid using metric_card
+        total = len(dataset_df)
+        bajo_riesgo = len(dataset_df[dataset_df['label'] == 0])
+        alto_riesgo = len(dataset_df[dataset_df['label'] == 1])
+        balance = (alto_riesgo / total * 100) if total else 0
+
+        kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+        with kpi1:
+            metric_card("Total muestras", total)
+        with kpi2:
+            metric_card("Bajo riesgo", bajo_riesgo)
+        with kpi3:
+            metric_card("Alto riesgo", alto_riesgo)
+        with kpi4:
+            metric_card("Balance de clases", f"{balance:.1f}%")
+            if balance < 15 or balance > 85:
+                status_pill("Desbalanceado", "warn")
+            else:
+                status_pill("Balanceado", "good")
 
         st.divider()
 
@@ -702,47 +750,21 @@ def main():
 
         dataset = st.session_state.dataset
 
-        # Dataset info in grid
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.container(border=True).metric("📊 Muestras", len(dataset))
-        with col2:
-            st.container(border=True).metric("📁 Fuente", st.session_state.data_source)
-        with col3:
-            st.container(border=True).metric("🔄 Tipo", "Incremental" if st.session_state.data_source == "Base de Datos" else "Inicial")
-
-        st.divider()
-
-        # Methodology panel (explicit and visible for documentation)
-        st.container(border=True).markdown("""
-        ### � Metodología de Entrenamiento
-        
-        **Validación Cruzada Estratificada (Stratified K-Fold):**
-        - Divide el dataset en K folds manteniendo la proporción de clases en cada fold
-        - Cada fold se usa una vez como validación y K-1 veces como entrenamiento
-        - Proporciona estimación más robusta del rendimiento general del modelo
-        - Número de folds: ajustado automáticamente según tamaño del dataset (mínimo 2, máximo 10)
-        
-        **Métricas de Evaluación:**
-        - **F1-Score:** Media armónica de precision y recall (ideal para datasets desbalanceados)
-        - **Accuracy:** Proporción de predicciones correctas
-        - **Precision:** Proporción de positivos predichos que son realmente positivos
-        - **Recall:** Proporción de positivos reales que fueron identificados correctamente
-        - **ROC-AUC:** Área bajo la curva ROC (mide capacidad de discriminación)
-        
-        **Modelos Comparados:**
-        1. **Logistic Regression:** Baseline interpretable con regularización
-        2. **Random Forest:** Ensemble de árboles de decisión con bagging
-        3. **Support Vector Machine:** Clasificador basado en márgenes máximos
-        4. **Gradient Boosting:** Boosting secuencial de árboles débiles
-        5. **Neural Network (MLP):** Perceptrón multicapa con backpropagation
-        
-        **Proceso de Selección:**
-        - Se entrena cada modelo con validación cruzada
-        - Se calculan métricas promedio y desviación estándar
-        - Se selecciona el modelo con mejor F1-Score promedio
-        - Se realizan tests estadísticos (t-test pareado) para validar significancia
-        """)
+        # Dataset info in grid using metric_card
+        col_info, col_meth = st.columns([1, 1])
+        with col_info:
+            metric_card("Dataset cargado", f"{len(dataset)} muestras", f"Fuente: {st.session_state.data_source}")
+        with col_meth:
+            st.markdown("""
+            <div class="info-card">
+            <b>📐 Metodología de validación</b><br>
+            <span style="font-size:0.85rem; color:var(--app-text-secondary);">
+            Stratified K-Fold cross-validation (folds ajustados al tamaño del dataset).
+            Métricas calculadas: F1-score, accuracy, precision, recall y ROC-AUC.
+            Comparación entre modelos con t-test pareado.
+            </span>
+            </div>
+            """, unsafe_allow_html=True)
 
         st.divider()
 
@@ -799,71 +821,36 @@ def main():
         ])
 
         with tab1:
-            # Complete hero view for article capture
-            # Determine status color based on F1 score
-            f1_status = result.best_f1
-            if f1_status >= 0.8:
-                status_color = "success"
-                status_emoji = "✅"
-                status_text = "Excelente"
-            elif f1_status >= 0.7:
-                status_color = "info"  
-                status_emoji = "👍"
-                status_text = "Bueno"
-            elif f1_status >= 0.6:
-                status_color = "warning"
-                status_emoji = "⚠️"
-                status_text = "Moderado"
-            else:
-                status_color = "error"
-                status_emoji = "❌"
-                status_text = "Necesita mejora"
-            
-            st.container(border=True).markdown(f"""
-            ### 🏆 Modelo Ganador: {result.best_model}
-            
-            **Métricas Principales:**
-            - **F1-Score:** {result.best_f1:.3f} (métrica principal de selección)
-            - **Estado:** {status_emoji} {status_text}
-            
-            **Recomendación:**
-            {result.recommendation}
-            
-            **Contexto del Entrenamiento:**
-            - Dataset: {dataset_size} muestras desde {data_source}
-            - Validación: Cross-validation estratificada
-            - Modelos comparados: 5 algoritmos ML
-            """)
-            
-            # Best model metrics in grid
-            best_result = next(r for r in result.results if r.model_name == result.best_model)
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                st.container(border=True).metric("📊 F1-Score", f"{best_result.f1_mean:.3f}", f"±{best_result.f1_std:.3f}")
-            with col2:
-                st.container(border=True).metric("🎯 Accuracy", f"{best_result.accuracy_mean:.3f}", f"±{best_result.accuracy_std:.3f}")
-            with col3:
-                st.container(border=True).metric("💎 Precision", f"{best_result.precision_mean:.3f}", f"±{best_result.precision_std:.3f}")
-            with col4:
-                st.container(border=True).metric("🔍 Recall", f"{best_result.recall_mean:.3f}", f"±{best_result.recall_std:.3f}")
+            # Hero view with metric_card and status_pill
+            status_label, status_kind = f1_status(result.best_f1)
 
-            st.divider()
+            kpi1, kpi2, kpi3 = st.columns(3)
+            with kpi1:
+                metric_card("Modelo seleccionado", result.best_model)
+            with kpi2:
+                metric_card("F1-score", f"{result.best_f1:.3f}")
+            with kpi3:
+                st.markdown("<div class='metric-card'><div class='label'>Estado</div>", unsafe_allow_html=True)
+                status_pill(status_label, status_kind)
+                st.markdown("</div>", unsafe_allow_html=True)
 
-            # PDF Export
-            st.container(border=True).markdown("### 📄 Exportación de Reportes")
-            if REPORTLAB_AVAILABLE:
-                pdf_buffer = generate_pdf_report(result, dataset_size, data_source)
-                if pdf_buffer:
-                    st.download_button(
-                        label="📄 Descargar Reporte PDF Completo",
-                        data=pdf_buffer.getvalue(),
-                        file_name=f"reporte_entrenamiento_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-                        mime="application/pdf",
-                        type="primary",
-                        use_container_width=True
-                    )
-            else:
-                st.warning("Para descargar PDF, instala reportlab: pip install reportlab")
+            st.info(f"� {result.recommendation}")
+
+            col_export, _ = st.columns([1, 2])
+            with col_export:
+                if REPORTLAB_AVAILABLE:
+                    pdf_buffer = generate_pdf_report(result, dataset_size, data_source)
+                    if pdf_buffer:
+                        st.download_button(
+                            label="📄 Descargar reporte PDF",
+                            data=pdf_buffer.getvalue(),
+                            file_name=f"reporte_entrenamiento_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                            mime="application/pdf",
+                            type="primary",
+                            use_container_width=True
+                        )
+                else:
+                    st.warning("Para descargar PDF, instala reportlab: pip install reportlab")
 
         with tab2:
             # Complete comparison view
