@@ -6,6 +6,7 @@ comprobantes y las transiciones de estado de una factura.
 """
 import uuid
 from datetime import date
+from typing import Tuple, Optional
 
 from sqlalchemy.orm import Session
 
@@ -17,6 +18,7 @@ from app.repositories.invoice_repository import InvoiceRepository
 from app.repositories.payment_repository import PaymentRepository
 from app.repositories.settings_repository import SettingsRepository
 from app.schemas.invoice import InvoiceCreate
+from app.services.risk_service import RiskService
 
 settings = get_settings()
 
@@ -28,6 +30,7 @@ class InvoiceService:
         self.client_repo = ClientRepository(db)
         self.payment_repo = PaymentRepository(db)
         self.settings_repo = SettingsRepository(db)
+        self.risk_service = RiskService(db)
 
     def _igv_porcentaje(self) -> float:
         valores = self.settings_repo.get_all()
@@ -37,7 +40,7 @@ class InvoiceService:
         except (TypeError, ValueError):
             return settings.igv_porcentaje
 
-    def create(self, data: InvoiceCreate, created_by: uuid.UUID) -> Invoice:
+    def create(self, data: InvoiceCreate, created_by: uuid.UUID) -> Tuple[Invoice, Optional[dict]]:
         client = self.client_repo.get_by_id(data.client_id)
         if not client:
             raise NotFoundError("Cliente no encontrado")
@@ -76,7 +79,29 @@ class InvoiceService:
             created_by=created_by,
             items=items,
         )
-        return self.repo.create(invoice)
+        
+        created_invoice = self.repo.create(invoice)
+        
+        # Calcular riesgo del cliente automáticamente
+        riesgo_alerta = None
+        try:
+            riesgo = self.risk_service.score_client(data.client_id)
+            if riesgo.score > 0.7:  # Riesgo alto (>70%)
+                riesgo_alerta = {
+                    "nivel": riesgo.nivel,
+                    "score": riesgo.score,
+                    "mensaje": f"⚠️ Cliente con alto riesgo de morosidad ({riesgo.score*100:.0f}%)",
+                    "factores": {
+                        "pct_facturas_vencidas": riesgo.factores.pct_facturas_vencidas,
+                        "pct_pagos_tardios": riesgo.factores.pct_pagos_tardios,
+                        "dias_mora_promedio": riesgo.factores.dias_mora_promedio
+                    }
+                }
+        except Exception:
+            # Si no se puede calcular riesgo, continuar sin alerta
+            pass
+        
+        return created_invoice, riesgo_alerta
 
     def get(self, invoice_id: uuid.UUID) -> Invoice:
         invoice = self.repo.get_by_id(invoice_id)

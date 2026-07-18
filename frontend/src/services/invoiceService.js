@@ -6,4 +6,6 @@ export const invoiceService = {
   create: (data) => api.post("/api/invoices", data),
   anular: (id) => api.post(`/api/invoices/${id}/anular`),
   descargarPdf: (id) => api.get(`/api/invoices/${id}/pdf`, { responseType: "blob" }),
+  getCollectionPriority: () => api.get("/api/risk/collection-priority"),
+  getCreditLimitSuggestion: (clientId) => api.get(`/api/risk/credit-limit/${clientId}`),
 };

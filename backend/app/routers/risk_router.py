@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.models.user import User, UserRole
 from app.routers.deps import get_current_user, require_roles
-from app.schemas.risk import ClientRiskResponse, TrainRiskResponse, TrainingStatus
+from app.schemas.risk import ClientRiskResponse, TrainRiskResponse, TrainingStatus, CompareModelsResponse, TrainModelWithTypeRequest
 from app.services.risk_service import RiskService
 
 router = APIRouter(prefix="/api/risk", tags=["Riesgo de Morosidad (IA)"])
@@ -65,4 +65,38 @@ def get_client_risk(
     current_user: User = Depends(get_current_user),
 ):
     return RiskService(db).score_client(client_id)
+
+
+@router.post("/compare-models", response_model=CompareModelsResponse)
+def compare_models(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(UserRole.ADMINISTRADOR, UserRole.CONTADOR)),
+):
+    return RiskService(db).compare_models()
+
+
+@router.post("/train-with-type", response_model=TrainRiskResponse)
+def train_model_with_type(
+    request: TrainModelWithTypeRequest,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(UserRole.ADMINISTRADOR, UserRole.CONTADOR)),
+):
+    return RiskService(db).train_with_type(request.model_type)
+
+
+@router.get("/collection-priority")
+def get_collection_priority(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return RiskService(db).listar_clientes_para_cobranza()
+
+
+@router.get("/credit-limit/{client_id}")
+def get_credit_limit_suggestion(
+    client_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return RiskService(db).sugerir_limite_credito(str(client_id))
 

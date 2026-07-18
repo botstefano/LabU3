@@ -14,9 +14,9 @@ from app.repositories.client_repository import ClientRepository
 from app.repositories.invoice_repository import InvoiceRepository
 from app.repositories.payment_repository import PaymentRepository
 from app.services.invoice_service import InvoiceService
-from app.schemas.risk import ClientRiskResponse, RiskFactors, TrainRiskResponse, EDAMetrics, TrainingMetrics, TrainingStatus
+from app.schemas.risk import ClientRiskResponse, RiskFactors, TrainRiskResponse, EDAMetrics, TrainingMetrics, TrainingStatus, CompareModelsResponse
 from app.ml.features import compute_client_features, ClientFeatures, features_to_vector, FEATURE_NAMES
-from app.ml.risk_model import train_model, predict_proba, model_disponible, TrainResult, EDAResult, MetricsResult
+from app.ml.risk_model import train_model, predict_proba, model_disponible, TrainResult, EDAResult, MetricsResult, compare_models, train_model_with_type
 
 
 # Global training state (in-memory, for production use Redis or similar)
@@ -292,4 +292,165 @@ class RiskService:
                 antiguedad_dias=features.antiguedad_dias
             )
         )
+
+    def compare_models(self) -> CompareModelsResponse:
+        """Compare multiple models using cross-validation and statistical analysis"""
+        self.invoice_service.actualizar_estados_vencidos()
+
+        clients = self.client_repo.list_all()
+        dataset: List[ClientFeatures] = []
+
+        for client in clients:
+            invoices = self.invoice_repo.list_all_by_client(client.id)
+            payments_by_invoice: Dict[str, List[Payment]] = {}
+            for inv in invoices:
+                payments = self.payment_repo.list_by_invoice(inv.id)
+                payments_by_invoice[str(inv.id)] = payments
+
+            features = compute_client_features(client, invoices, payments_by_invoice)
+            if features:
+                dataset.append(features)
+
+        if not dataset:
+            return CompareModelsResponse(
+                results=[],
+                best_model="",
+                best_f1=0.0,
+                recommendation="No hay suficientes clientes con historial para comparar modelos.",
+                statistical_tests={}
+            )
+
+        result = compare_models(dataset)
+        
+        return CompareModelsResponse(
+            results=result.results,
+            best_model=result.best_model,
+            best_f1=result.best_f1,
+            recommendation=result.recommendation,
+            statistical_tests=result.statistical_tests
+        )
+
+    def train_with_type(self, model_type: str) -> TrainRiskResponse:
+        """Train a specific model type and persist it"""
+        self.invoice_service.actualizar_estados_vencidos()
+
+        clients = self.client_repo.list_all()
+        dataset: List[ClientFeatures] = []
+
+        for client in clients:
+            invoices = self.invoice_repo.list_all_by_client(client.id)
+            payments_by_invoice: Dict[str, List[Payment]] = {}
+            for inv in invoices:
+                payments = self.payment_repo.list_by_invoice(inv.id)
+                payments_by_invoice[str(inv.id)] = payments
+
+            features = compute_client_features(client, invoices, payments_by_invoice)
+            if features:
+                dataset.append(features)
+
+        result = train_model_with_type(dataset, model_type)
+
+        # Convert result to response schema
+        eda_response = None
+        if result.eda:
+            eda_response = EDAMetrics(
+                n_muestras=result.eda.n_muestras,
+                n_clase_alto_riesgo=result.eda.n_clase_alto_riesgo,
+                n_clase_bajo_riesgo=result.eda.n_clase_bajo_riesgo,
+                feature_stats=result.eda.feature_stats,
+                class_balance=result.eda.class_balance
+            )
+        
+        metrics_response = None
+        if result.metrics:
+            metrics_response = TrainingMetrics(
+                accuracy=result.metrics.accuracy,
+                precision=result.metrics.precision,
+                recall=result.metrics.recall,
+                f1=result.metrics.f1,
+                confusion_matrix=result.metrics.confusion_matrix,
+                feature_importance=result.metrics.feature_importance
+            )
+
+        return TrainRiskResponse(
+            entrenado=result.entrenado,
+            n_muestras=result.n_muestras,
+            n_clase_alto_riesgo=result.n_clase_alto_riesgo,
+            accuracy=result.accuracy,
+            f1=result.f1,
+            mensaje=result.mensaje,
+            modelo_disponible=result.modelo_disponible,
+            eda=eda_response,
+            metrics=metrics_response
+        )
+
+    def listar_clientes_para_cobranza(self) -> list:
+        """Listar clientes priorizados por riesgo de morosidad para cobranza"""
+        self.invoice_service.actualizar_estados_vencidos()
+
+        clients = self.client_repo.list_all()
+        clientes_con_riesgo = []
+
+        for client in clients:
+            try:
+                riesgo = self.score_client(client.id)
+                clientes_con_riesgo.append({
+                    "client_id": str(client.id),
+                    "cliente_nombre": client.nombre_razon_social,
+                    "score": riesgo.score,
+                    "nivel": riesgo.nivel,
+                    "metodo": riesgo.metodo,
+                    "pct_facturas_vencidas": riesgo.factores.pct_facturas_vencidas if riesgo.factores else 0,
+                    "pct_pagos_tardios": riesgo.factores.pct_pagos_tardios if riesgo.factores else 0,
+                    "dias_mora_promedio": riesgo.factores.dias_mora_promedio if riesgo.factores else 0,
+                })
+            except Exception:
+                # Si no se puede calcular riesgo, continuar
+                pass
+
+        # Ordenar por riesgo (mayor primero)
+        clientes_priorizados = sorted(clientes_con_riesgo, key=lambda x: x["score"], reverse=True)
+        return clientes_priorizados
+
+    def sugerir_limite_credito(self, client_id: str) -> dict:
+        """Sugerir límite de crédito basado en riesgo del cliente"""
+        try:
+            riesgo = self.score_client(client_id)
+            
+            if riesgo.nivel == "bajo":
+                limite = 10000  # S/ 10,000
+                justificacion = "Cliente con bajo riesgo de morosidad. Límite de crédito alto."
+            elif riesgo.nivel == "medio":
+                limite = 5000  # S/ 5,000
+                justificacion = "Cliente con riesgo medio de morosidad. Límite de crédito moderado."
+            else:  # alto
+                limite = 1000  # S/ 1,000
+                justificacion = "Cliente con alto riesgo de morosidad. Límite de crédito bajo."
+            
+            return {
+                "client_id": client_id,
+                "limite_sugerido": limite,
+                "nivel_riesgo": riesgo.nivel,
+                "score_riesgo": riesgo.score,
+                "justificacion": justificacion,
+                "factores": {
+                    "pct_facturas_vencidas": riesgo.factores.pct_facturas_vencidas if riesgo.factores else 0,
+                    "pct_pagos_tardios": riesgo.factores.pct_pagos_tardios if riesgo.factores else 0,
+                    "dias_mora_promedio": riesgo.factores.dias_mora_promedio if riesgo.factores else 0,
+                }
+            }
+        except Exception as e:
+            # Si no se puede calcular riesgo, retornar límite conservador
+            return {
+                "client_id": client_id,
+                "limite_sugerido": 1000,
+                "nivel_riesgo": "desconocido",
+                "score_riesgo": 0.0,
+                "justificacion": "No se pudo calcular el riesgo. Límite conservador.",
+                "factores": {
+                    "pct_facturas_vencidas": 0,
+                    "pct_pagos_tardios": 0,
+                    "dias_mora_promedio": 0,
+                }
+            }
 

@@ -57,3 +57,15 @@ class InvoiceListItem(BaseModel):
     dias_mora: Optional[int] = None
 
     model_config = {"from_attributes": True}
+
+
+class RiskAlert(BaseModel):
+    nivel: str
+    score: float
+    mensaje: str
+    factores: dict
+
+
+class InvoiceCreateResponse(BaseModel):
+    invoice: InvoiceResponse
+    risk_alert: Optional[RiskAlert] = None

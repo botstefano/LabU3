@@ -58,3 +58,34 @@ class TrainingStatus(BaseModel):
     mensaje: str
     result: Optional[TrainRiskResponse] = None
 
+
+class ModelComparisonResult(BaseModel):
+    model_name: str
+    f1_mean: float
+    f1_std: float
+    f1_scores: List[float]
+    accuracy_mean: float
+    accuracy_std: float
+    precision_mean: float
+    precision_std: float
+    recall_mean: float
+    recall_std: float
+    roc_auc_mean: float
+    roc_auc_std: float
+    training_time: float
+    feature_importance: Dict[str, float]
+
+
+class CompareModelsResponse(BaseModel):
+    results: List[ModelComparisonResult]
+    best_model: str
+    best_f1: float
+    recommendation: str
+    statistical_tests: Dict[str, Any]
+    correlation_matrix: Optional[Dict[str, Dict[str, float]]] = None
+    roc_curves: Optional[Dict[str, Dict[str, List[float]]]] = None
+
+
+class TrainModelWithTypeRequest(BaseModel):
+    model_type: str  # "logistic", "random_forest", "svm", "gradient_boosting", "mlp"
+

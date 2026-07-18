@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { FileSpreadsheet, FileText } from "lucide-react";
+import { useTheme } from "../context/ThemeContext";
+import { useTranslation } from "react-i18next";
 import AppLayout from "../components/layout/AppLayout";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
@@ -18,6 +20,8 @@ function descargarBlob(data, filename, mimeType) {
 export default function Reports() {
   const [filtros, setFiltros] = useState({ fecha_desde: "", fecha_hasta: "", estado: "" });
   const [descargando, setDescargando] = useState("");
+  const { t } = useTranslation();
+  const { theme } = useTheme();
 
   const construirParams = () => {
     const params = {};
@@ -48,37 +52,38 @@ export default function Reports() {
   };
 
   return (
-    <AppLayout title="Reportes">
-      <Card title="Reporte de facturación" className="max-w-2xl">
-        <p className="mb-4 text-sm text-ink-500">
-          Genera un reporte exportable de las facturas emitidas, filtrando por rango de fechas y estado del
-          comprobante.
+    <AppLayout title={t("reports.title")}>
+      <Card title={t("reports.invoicingReport")} className="max-w-2xl">
+        <p className={`mb-4 text-sm ${theme === "dark" ? "text-ink-400" : "text-ink-500"}`}>
+          {t("reports.reportDescription")}
         </p>
 
         <div className="grid grid-cols-3 gap-3">
-          <Field label="Desde">
+          <Field label={t("reports.from")}>
             <Input type="date" value={filtros.fecha_desde} onChange={(e) => setFiltros({ ...filtros, fecha_desde: e.target.value })} />
           </Field>
-          <Field label="Hasta">
+          <Field label={t("reports.to")}>
             <Input type="date" value={filtros.fecha_hasta} onChange={(e) => setFiltros({ ...filtros, fecha_hasta: e.target.value })} />
           </Field>
-          <Field label="Estado">
+          <Field label={t("reports.status")}>
             <Select value={filtros.estado} onChange={(e) => setFiltros({ ...filtros, estado: e.target.value })}>
-              <option value="">Todos</option>
-              <option value="pendiente">Pendiente</option>
-              <option value="pagada">Pagada</option>
-              <option value="vencida">Vencida</option>
-              <option value="anulada">Anulada</option>
+              <option value="">{t("reports.all")}</option>
+              <option value="pendiente">{t("invoices.pending")}</option>
+              <option value="pagada">{t("invoices.paid")}</option>
+              <option value="vencida">{t("invoices.overdue")}</option>
+              <option value="anulada">{t("invoices.cancelled")}</option>
             </Select>
           </Field>
         </div>
 
         <div className="mt-4 flex gap-3">
           <Button variant="secondary" onClick={exportarExcel} disabled={descargando === "excel"}>
-            <FileSpreadsheet size={16} /> {descargando === "excel" ? "Generando..." : "Exportar a Excel"}
+            <FileSpreadsheet size={16} />
+            {descargando === "excel" ? t("reports.generating") : t("reports.exportExcel")}
           </Button>
           <Button variant="secondary" onClick={exportarPdf} disabled={descargando === "pdf"}>
-            <FileText size={16} /> {descargando === "pdf" ? "Generando..." : "Exportar a PDF"}
+            <FileText size={16} />
+            {descargando === "pdf" ? t("reports.generating") : t("reports.exportPdf")}
           </Button>
         </div>
       </Card>

@@ -41,3 +41,15 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
+
+  - type: web
+    name: facturacion-ml
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run streamlit_app.py --server.port=$PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: ENVIRONMENT
+        value: production

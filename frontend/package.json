@@ -9,6 +9,7 @@
     "preview": "vite preview --host --port 4173"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.10",
     "axios": "^1.7.7",
     "i18next": "^26.3.6",
     "lucide-react": "^0.451.0",

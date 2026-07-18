@@ -11,7 +11,7 @@ from app.db.database import get_db
 from app.models.invoice import EstadoFactura
 from app.models.user import User, UserRole
 from app.routers.deps import get_current_user, require_roles
-from app.schemas.invoice import InvoiceCreate, InvoiceListItem, InvoiceResponse
+from app.schemas.invoice import InvoiceCreate, InvoiceListItem, InvoiceResponse, InvoiceCreateResponse, RiskAlert
 from app.services.invoice_service import InvoiceService
 from app.services.pdf_service import generar_pdf_factura
 
@@ -24,15 +24,23 @@ def _to_response(invoice, service: InvoiceService) -> InvoiceResponse:
     return data
 
 
-@router.post("", response_model=InvoiceResponse, status_code=201)
+@router.post("", response_model=InvoiceCreateResponse, status_code=201)
 def create_invoice(
     data: InvoiceCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.ADMINISTRADOR, UserRole.VENDEDOR, UserRole.CONTADOR)),
 ):
     service = InvoiceService(db)
-    invoice = service.create(data, created_by=current_user.id)
-    return _to_response(invoice, service)
+    invoice, risk_alert = service.create(data, created_by=current_user.id)
+    
+    risk_alert_response = None
+    if risk_alert:
+        risk_alert_response = RiskAlert(**risk_alert)
+    
+    return InvoiceCreateResponse(
+        invoice=_to_response(invoice, service),
+        risk_alert=risk_alert_response
+    )
 
 
 @router.get("", response_model=List[InvoiceListItem])
