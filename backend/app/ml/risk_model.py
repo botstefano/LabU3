@@ -167,27 +167,53 @@ def _compute_eda(dataset: List[ClientFeatures]) -> EDAResult:
 
 def _compute_metrics(pipeline: Pipeline, X_test: np.ndarray, y_test: np.ndarray) -> MetricsResult:
     y_pred = pipeline.predict(X_test)
-    
+
     accuracy = float(accuracy_score(y_test, y_pred))
     precision = float(precision_score(y_test, y_pred, zero_division=0))
     recall = float(recall_score(y_test, y_pred, zero_division=0))
     f1 = float(f1_score(y_test, y_pred, zero_division=0))
-    
+
     cm = confusion_matrix(y_test, y_pred)
     confusion_matrix_list = cm.tolist()
-    
-    # Feature importance from logistic regression coefficients
+
+    # Feature importance from model
     classifier = pipeline.named_steps['classifier']
-    scaler = pipeline.named_steps['scaler']
-    
-    # Get coefficients and scale them by feature std for interpretability
-    coef = classifier.coef_[0]
-    feature_std = scaler.scale_
     feature_importance = {}
-    for i, name in enumerate(FEATURE_NAMES):
-        importance = abs(coef[i] * feature_std[i])
-        feature_importance[name] = float(importance)
-    
+
+    # Handle different model types for feature importance
+    if hasattr(classifier, 'coef_'):
+        # Linear models (Logistic Regression, SVM)
+        scaler = pipeline.named_steps.get('scaler')
+        if scaler is not None:
+            # Scale coefficients by feature std for interpretability
+            coef = classifier.coef_[0]
+            feature_std = scaler.scale_
+            for i, name in enumerate(FEATURE_NAMES):
+                importance = abs(coef[i] * feature_std[i])
+                feature_importance[name] = float(importance)
+        else:
+            # No scaler, use raw coefficients
+            coef = classifier.coef_[0]
+            for i, name in enumerate(FEATURE_NAMES):
+                importance = abs(coef[i])
+                feature_importance[name] = float(importance)
+    elif hasattr(classifier, 'feature_importances_'):
+        # Tree-based models (Random Forest, Gradient Boosting)
+        importances = classifier.feature_importances_
+        for i, name in enumerate(FEATURE_NAMES):
+            feature_importance[name] = float(importances[i])
+    elif hasattr(classifier, 'coefs_'):
+        # Neural Network (MLP)
+        # Use first layer weights as approximation
+        coefs = classifier.coefs_[0]
+        for i, name in enumerate(FEATURE_NAMES):
+            importance = np.mean(np.abs(coefs[i]))
+            feature_importance[name] = float(importance)
+    else:
+        # Fallback: equal importance
+        for name in FEATURE_NAMES:
+            feature_importance[name] = 100.0 / len(FEATURE_NAMES)
+
     # Normalize to percentage
     total = sum(feature_importance.values())
     if total > 0:
