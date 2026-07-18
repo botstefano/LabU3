@@ -306,9 +306,66 @@ def main():
                     st.warning(f"Solo hay {len(dataset)} clientes en la base de datos. Se combinarán con datos guardados.")
                 
                 st.success(f"Datos cargados de BD: {len(dataset)} clientes")
-            except Exception as e:
-                st.error(f"Error cargando datos: {e}")
-                return
+
+    # Dataset analysis
+    st.header("Análisis del Dataset")
+
+    # Convert dataset to DataFrame for analysis
+    dataset_df = pd.DataFrame([
+        {
+            "pct_facturas_vencidas": f.pct_facturas_vencidas,
+            "pct_pagos_tardios": f.pct_pagos_tardios,
+            "dias_mora_promedio": f.dias_mora_promedio,
+            "monto_promedio_factura": f.monto_promedio_factura,
+            "cantidad_facturas": f.cantidad_facturas,
+            "antiguedad_dias": f.antiguedad_dias,
+            "label": f.label
+        }
+        for f in dataset
+    ])
+
+    # Class distribution
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("Distribución de Clases")
+        class_counts = dataset_df['label'].value_counts()
+        fig = px.pie(values=class_counts.values, names=['Bajo Riesgo', 'Alto Riesgo'] if 0 in class_counts.index else ['Alto Riesgo'], hole=0.3)
+        fig.update_layout(title="Balance de Clases")
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col2:
+        st.subheader("Estadísticas Descriptivas")
+        st.dataframe(dataset_df.describe(), use_container_width=True)
+
+    # Feature distributions by class
+    st.subheader("Distribución de Features por Clase")
+    feature_cols = ['pct_facturas_vencidas', 'pct_pagos_tardios', 'dias_mora_promedio',
+                   'monto_promedio_factura', 'cantidad_facturas', 'antiguedad_dias']
+
+    selected_feature = st.selectbox("Selecciona feature para visualizar", feature_cols)
+
+    fig = px.histogram(dataset_df, x=selected_feature, color='label',
+                      barmode='overlay', nbins=20,
+                      title=f"Distribución de {selected_feature} por Clase")
+    st.plotly_chart(fig, use_container_width=True)
+
+    # Boxplots for all features
+    st.subheader("Boxplots Comparativos por Clase")
+    fig = go.Figure()
+    for i, feature in enumerate(feature_cols):
+        fig.add_trace(go.Box(
+            y=dataset_df[dataset_df['label'] == 0][feature],
+            name=f'{feature} (Bajo)',
+            marker_color='blue'
+        ))
+        fig.add_trace(go.Box(
+            y=dataset_df[dataset_df['label'] == 1][feature],
+            name=f'{feature} (Alto)',
+            marker_color='red'
+        ))
+
+    fig.update_layout(title="Distribución de Features por Clase", yaxis_title="Valor", height=600)
+    st.plotly_chart(fig, use_container_width=True)
     
     # Compare models
     st.header("Comparación de Modelos")
@@ -443,7 +500,7 @@ def main():
             
             # Feature importance comparison
             st.subheader("Comparación de Feature Importance")
-            
+
             feature_importance_data = []
             for result_item in result.results:
                 for feature, importance in result_item.feature_importance.items():
@@ -452,11 +509,180 @@ def main():
                         "Modelo": result_item.model_name,
                         "Importancia": importance
                     })
-            
+
             fi_df = pd.DataFrame(feature_importance_data)
             fig = px.bar(fi_df, x="Importancia", y="Feature", color="Modelo", orientation="h", barmode="group")
             fig.update_layout(title="Feature Importance por Modelo", height=500)
             st.plotly_chart(fig, use_container_width=True)
+
+            # Cross-validation details
+            st.subheader("Detalles de Cross-Validation")
+            st.info(f"Configuración: Stratified K-Fold con n_splits ajustado dinámicamente según tamaño de dataset")
+
+            # Scores per fold
+            st.subheader("Scores por Fold")
+            fold_data = []
+            for result_item in result.results:
+                for i, score in enumerate(result_item.f1_scores):
+                    fold_data.append({
+                        "Modelo": result_item.model_name,
+                        "Fold": i + 1,
+                        "F1-Score": score
+                    })
+
+            fold_df = pd.DataFrame(fold_data)
+            fig = px.line(fold_df, x="Fold", y="F1-Score", color="Modelo", markers=True)
+            fig.update_layout(title="F1-Score por Fold", yaxis_title="F1-Score")
+            st.plotly_chart(fig, use_container_width=True)
+
+            # Variance analysis
+            st.subheader("Análisis de Varianza entre Folds")
+            variance_data = []
+            for result_item in result.results:
+                variance_data.append({
+                    "Modelo": result_item.model_name,
+                    "Varianza F1": result_item.f1_std ** 2,
+                    "Estabilidad": "Alta" if result_item.f1_std < 0.05 else "Media" if result_item.f1_std < 0.1 else "Baja"
+                })
+
+            variance_df = pd.DataFrame(variance_data)
+            st.dataframe(variance_df, use_container_width=True)
+
+            # Model-specific details
+            st.header("Detalles Individuales por Modelo")
+
+            for result_item in result.results:
+                with st.expander(f"📊 {result_item.model_name}"):
+                    col1, col2 = st.columns(2)
+
+                    with col1:
+                        st.subheader("Hiperparámetros")
+                        if result_item.hyperparameters:
+                            # Show only key hyperparameters to avoid clutter
+                            key_params = {}
+                            for param, value in result_item.hyperparameters.items():
+                                if param in ['n_estimators', 'max_depth', 'learning_rate', 'C', 'kernel', 'hidden_layer_sizes', 'alpha']:
+                                    key_params[param] = value
+                            st.json(key_params if key_params else result_item.hyperparameters)
+                        else:
+                            st.info("No hay hiperparámetros disponibles")
+
+                    with col2:
+                        st.subheader("Matriz de Confusión")
+                        if result_item.confusion_matrix:
+                            cm = np.array(result_item.confusion_matrix)
+                            fig = px.imshow(cm, text_auto=True, aspect="auto",
+                                          color_continuous_scale='Blues',
+                                          labels=dict(x="Predicho", y="Real", color="Count"))
+                            fig.update_layout(title="Matriz de Confusión")
+                            st.plotly_chart(fig, use_container_width=True)
+                        else:
+                            st.info("Matriz de confusión no disponible")
+
+                    # Performance details
+                    st.subheader("Performance Detallada")
+                    perf_data = {
+                        "Métrica": ["F1-Score", "Accuracy", "Precision", "Recall", "ROC-AUC", "Tiempo Entrenamiento"],
+                        "Valor": [
+                            f"{result_item.f1_mean:.3f} ± {result_item.f1_std:.3f}",
+                            f"{result_item.accuracy_mean:.3f} ± {result_item.accuracy_std:.3f}",
+                            f"{result_item.precision_mean:.3f} ± {result_item.precision_std:.3f}",
+                            f"{result_item.recall_mean:.3f} ± {result_item.recall_std:.3f}",
+                            f"{result_item.roc_auc_mean:.3f} ± {result_item.roc_auc_std:.3f}",
+                            f"{result_item.training_time:.2f}s"
+                        ]
+                    }
+                    st.dataframe(pd.DataFrame(perf_data), use_container_width=True)
+
+            # Error analysis
+            st.header("Análisis de Errores")
+
+            # Compute predictions for error analysis
+            from app.ml.risk_model import _build_pipeline
+            X = np.array([features_to_vector(f) for f in dataset])
+            y = np.array([f.label for f in dataset])
+
+            # Train best model for error analysis
+            model_type_mapping = {
+                "Logistic Regression": "logistic",
+                "Random Forest": "random_forest",
+                "Support Vector Machine": "svm",
+                "Gradient Boosting": "gradient_boosting",
+                "Neural Network (MLP)": "mlp"
+            }
+            best_model_type = model_type_mapping.get(result.best_model, "logistic")
+            pipeline = _build_pipeline(best_model_type)
+            pipeline.fit(X, y)
+            y_pred = pipeline.predict(X)
+
+            # Find misclassified samples
+            misclassified = []
+            for i, (true_label, pred_label) in enumerate(zip(y, y_pred)):
+                if true_label != pred_label:
+                    misclassified.append({
+                        "Índice": i,
+                        "Real": "Alto Riesgo" if true_label == 1 else "Bajo Riesgo",
+                        "Predicho": "Alto Riesgo" if pred_label == 1 else "Bajo Riesgo",
+                        "pct_facturas_vencidas": dataset[i].pct_facturas_vencidas,
+                        "pct_pagos_tardios": dataset[i].pct_pagos_tardios,
+                        "dias_mora_promedio": dataset[i].dias_mora_promedio
+                    })
+
+            if misclassified:
+                st.warning(f"Se encontraron {len(misclassified)} casos mal clasificados")
+                misclassified_df = pd.DataFrame(misclassified)
+                st.dataframe(misclassified_df, use_container_width=True)
+            else:
+                st.success("No hay casos mal clasificados en el dataset de entrenamiento")
+
+            # Probability distribution
+            st.subheader("Distribución de Probabilidades Predichas")
+            if hasattr(pipeline.named_steps['classifier'], 'predict_proba'):
+                y_proba = pipeline.predict_proba(X)[:, 1]
+
+                fig = px.histogram(x=y_proba, color=y, nbins=30,
+                                 title="Distribución de Probabilidades de Alto Riesgo",
+                                 labels={"x": "Probabilidad", "color": "Clase Real"})
+                fig.update_layout(barmode='overlay')
+                st.plotly_chart(fig, use_container_width=True)
+
+                # Threshold analysis
+                st.subheader("Análisis de Threshold")
+                thresholds = np.arange(0.1, 0.9, 0.1)
+                threshold_results = []
+
+                for threshold in thresholds:
+                    y_pred_thresh = (y_proba >= threshold).astype(int)
+                    f1 = f1_score(y, y_pred_thresh, zero_division=0)
+                    precision = precision_score(y, y_pred_thresh, zero_division=0)
+                    recall = recall_score(y, y_pred_thresh, zero_division=0)
+                    threshold_results.append({
+                        "Threshold": threshold,
+                        "F1": f1,
+                        "Precision": precision,
+                        "Recall": recall
+                    })
+
+                threshold_df = pd.DataFrame(threshold_results)
+                fig = px.line(threshold_df, x="Threshold", y=["F1", "Precision", "Recall"],
+                             markers=True, title="Métricas vs Threshold")
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("El modelo seleccionado no soporta predict_proba")
+
+            # Performance summary
+            st.header("Resumen de Performance")
+            perf_summary = []
+            for result_item in result.results:
+                perf_summary.append({
+                    "Modelo": result_item.model_name,
+                    "Tiempo Entrenamiento (s)": result_item.training_time,
+                    "Tiempo por Fold (s)": result_item.training_time / len(result_item.f1_scores),
+                    "Estabilidad CV": "Alta" if result_item.f1_std < 0.05 else "Media" if result_item.f1_std < 0.1 else "Baja"
+                })
+
+            perf_summary_df = pd.DataFrame(perf_summary)
+            st.dataframe(perf_summary_df, use_container_width=True)
 
 if __name__ == "__main__":
     main()

@@ -73,6 +73,8 @@ class ModelComparisonResult:
     roc_auc_std: float
     training_time: float
     feature_importance: Dict[str, float]
+    hyperparameters: Optional[Dict[str, Any]] = None
+    confusion_matrix: Optional[List[List[int]]] = None
 
 
 @dataclass
@@ -458,7 +460,19 @@ def compare_models(dataset: List[ClientFeatures]) -> CompareModelsResult:
         
         # Compute feature importance
         feature_importance = _compute_feature_importance(pipeline, model_type)
-        
+
+        # Extract hyperparameters
+        hyperparameters = {}
+        classifier = pipeline.named_steps['classifier']
+        for param, value in classifier.get_params().items():
+            if not param.startswith('_'):
+                hyperparameters[param] = value
+
+        # Compute confusion matrix on full dataset
+        y_pred = pipeline.predict(X)
+        cm = confusion_matrix(y, y_pred)
+        confusion_matrix_list = cm.tolist()
+
         result = ModelComparisonResult(
             model_name=model_name,
             f1_mean=float(f1_scores.mean()),
@@ -473,7 +487,9 @@ def compare_models(dataset: List[ClientFeatures]) -> CompareModelsResult:
             roc_auc_mean=float(roc_auc_scores.mean()),
             roc_auc_std=float(roc_auc_scores.std()),
             training_time=float(training_time),
-            feature_importance=feature_importance
+            feature_importance=feature_importance,
+            hyperparameters=hyperparameters,
+            confusion_matrix=confusion_matrix_list
         )
         
         results.append(result)
