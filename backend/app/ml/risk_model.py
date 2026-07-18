@@ -497,7 +497,7 @@ def _compute_variance_analysis(results: List[ModelComparisonResult]) -> Dict[str
     return variance_analysis
 
 
-def _compute_learning_curves(X: np.ndarray, y: np.ndarray, model_types: Dict[str, str], models_config: Dict[str, str]) -> Dict[str, Dict[str, List[float]]]:
+def _compute_learning_curves(X: np.ndarray, y: np.ndarray, models_config: Dict[str, str]) -> Dict[str, Dict[str, List[float]]]:
     """Compute learning curves for all models"""
     learning_curves = {}
     
@@ -525,7 +525,7 @@ def _compute_learning_curves(X: np.ndarray, y: np.ndarray, model_types: Dict[str
     return learning_curves
 
 
-def _compute_calibration_curves(X: np.ndarray, y: np.ndarray, predictions: Dict[str, np.ndarray], model_types: Dict[str, str], models_config: Dict[str, str]) -> Dict[str, Dict[str, List[float]]]:
+def _compute_calibration_curves(X: np.ndarray, y: np.ndarray, predictions: Dict[str, np.ndarray], models_config: Dict[str, str]) -> Dict[str, Dict[str, List[float]]]:
     """Compute calibration curves for models that support predict_proba"""
     calibration_curves = {}
     
@@ -752,10 +752,10 @@ def compare_models(dataset: List[ClientFeatures]) -> CompareModelsResult:
     variance_analysis = _compute_variance_analysis(results)
     
     # Learning curves
-    learning_curves = _compute_learning_curves(X, y, model_types, models_config)
+    learning_curves = _compute_learning_curves(X, y, models_config)
     
     # Calibration curves
-    calibration_curves = _compute_calibration_curves(X, y, out_of_fold_predictions, model_types, models_config)
+    calibration_curves = _compute_calibration_curves(X, y, out_of_fold_predictions, models_config)
     
     # Feature importance stability
     feature_importance_stability = _compute_feature_importance_stability(results)
