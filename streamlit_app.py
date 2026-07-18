@@ -301,11 +301,14 @@ def main():
             try:
                 clients_df, invoices_df, payments_df = load_data()
                 dataset = compute_features_from_db(clients_df, invoices_df, payments_df)
-                
+
                 if len(dataset) < 12:
                     st.warning(f"Solo hay {len(dataset)} clientes en la base de datos. Se combinarán con datos guardados.")
-                
+
                 st.success(f"Datos cargados de BD: {len(dataset)} clientes")
+            except Exception as e:
+                st.error(f"Error cargando datos: {e}")
+                return
 
     # Dataset analysis
     st.header("Análisis del Dataset")
