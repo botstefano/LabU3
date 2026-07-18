@@ -113,21 +113,48 @@ def compute_features_from_db(clients_df, invoices_df, payments_df):
 def main():
     st.title("🧠 ML Risk Scoring - Model Comparison")
     st.markdown("Sistema de comparación de modelos de machine learning para scoring de riesgo de morosidad")
-    
-    # Load data
-    with st.spinner("Cargando datos de la base de datos..."):
-        try:
-            clients_df, invoices_df, payments_df = load_data()
-            dataset = compute_features_from_db(clients_df, invoices_df, payments_df)
-            
-            if len(dataset) < 12:
-                st.error("No hay suficientes datos para entrenar modelos. Ejecuta `python scripts/seed_demo_data.py` primero.")
+
+    # Data source selection
+    st.header("Fuente de Datos")
+    data_source = st.radio(
+        "Selecciona la fuente de datos para el entrenamiento:",
+        ["Base de Datos (Incremental)", "Archivo CSV (Primer entrenamiento)"],
+        horizontal=True
+    )
+
+    dataset = None
+
+    if data_source == "Archivo CSV (Primer entrenamiento)":
+        uploaded_file = st.file_uploader("Cargar archivo CSV con dataset inicial", type=['csv'])
+        
+        if uploaded_file:
+            try:
+                from app.services.risk_service import RiskService
+                import pandas as pd
+                
+                csv_content = uploaded_file.read().decode('utf-8')
+                dataset = RiskService().parse_dataset_from_csv(csv_content)
+                st.success(f"Dataset cargado desde CSV: {len(dataset)} muestras")
+            except Exception as e:
+                st.error(f"Error cargando CSV: {e}")
                 return
-            
-            st.success(f"Datos cargados: {len(dataset)} clientes con historial")
-        except Exception as e:
-            st.error(f"Error cargando datos: {e}")
+        else:
+            st.info("Por favor carga un archivo CSV para el primer entrenamiento.")
             return
+    else:
+        # Load from database for incremental training
+        with st.spinner("Cargando datos de la base de datos..."):
+            try:
+                clients_df, invoices_df, payments_df = load_data()
+                dataset = compute_features_from_db(clients_df, invoices_df, payments_df)
+                
+                if len(dataset) < 12:
+                    st.warning(f"Solo hay {len(dataset)} clientes en la base de datos. Se combinarán con datos guardados.")
+                
+                st.success(f"Datos cargados de BD: {len(dataset)} clientes")
+            except Exception as e:
+                st.error(f"Error cargando datos: {e}")
+                return
     
     # Compare models
     st.header("Comparación de Modelos")
@@ -136,8 +163,8 @@ def main():
         with st.spinner("Entrenando y comparando modelos con cross-validation..."):
             result = compare_models(dataset)
 
-            # Save best model for production
-            from app.ml.risk_model import train_model_with_type
+            # Save best model for production (incremental if from DB)
+            from app.ml.risk_model import train_model_with_type_incremental
             model_type_mapping = {
                 "Logistic Regression": "logistic",
                 "Random Forest": "random_forest",
@@ -147,8 +174,12 @@ def main():
             }
             best_model_type = model_type_mapping.get(result.best_model, "logistic")
 
-            st.info(f"Guardando mejor modelo ({result.best_model}) para producción...")
-            train_result = train_model_with_type(dataset, best_model_type)
+            if data_source == "Base de Datos (Incremental)":
+                st.info(f"Guardando mejor modelo ({result.best_model}) con entrenamiento incremental...")
+                train_result = train_model_with_type_incremental(dataset, best_model_type, use_saved=True)
+            else:
+                st.info(f"Guardando mejor modelo ({result.best_model}) desde CSV inicial...")
+                train_result = train_model_with_type_incremental(dataset, best_model_type, use_saved=False)
 
             if train_result.entrenado:
                 st.success(f"✅ Modelo {result.best_model} guardado exitosamente para producción")

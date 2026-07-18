@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import List, Optional, Tuple, Dict, Any, Literal
 from dataclasses import dataclass
 import time
+import json
 
 import joblib
 import numpy as np
@@ -21,6 +22,7 @@ from app.ml.features import ClientFeatures, features_to_vector, FEATURE_NAMES
 
 
 MODEL_PATH = Path(__file__).parent / "model_artifacts" / "risk_model.joblib"
+DATASET_PATH = Path(__file__).parent / "model_artifacts" / "training_dataset.json"
 
 
 @dataclass
@@ -556,4 +558,73 @@ def train_model_with_type(dataset: List[ClientFeatures], model_type: str = "logi
         eda=eda,
         metrics=metrics
     )
+
+
+def save_training_dataset(dataset: List[ClientFeatures]) -> None:
+    """Save training dataset to JSON file for incremental training"""
+    DATASET_PATH.parent.mkdir(parents=True, exist_ok=True)
+    dataset_dict = [
+        {
+            "pct_facturas_vencidas": f.pct_facturas_vencidas,
+            "pct_pagos_tardios": f.pct_pagos_tardios,
+            "dias_mora_promedio": f.dias_mora_promedio,
+            "monto_promedio_factura": f.monto_promedio_factura,
+            "cantidad_facturas": f.cantidad_facturas,
+            "antiguedad_dias": f.antiguedad_dias,
+            "label": f.label
+        }
+        for f in dataset
+    ]
+    with open(DATASET_PATH, 'w') as f:
+        json.dump(dataset_dict, f, indent=2)
+
+
+def load_training_dataset() -> List[ClientFeatures]:
+    """Load saved training dataset from JSON file"""
+    if not DATASET_PATH.exists():
+        return []
+    
+    with open(DATASET_PATH, 'r') as f:
+        dataset_dict = json.load(f)
+    
+    return [
+        ClientFeatures(
+            pct_facturas_vencidas=item["pct_facturas_vencidas"],
+            pct_pagos_tardios=item["pct_pagos_tardios"],
+            dias_mora_promedio=item["dias_mora_promedio"],
+            monto_promedio_factura=item["monto_promedio_factura"],
+            cantidad_facturas=item["cantidad_facturas"],
+            antiguedad_dias=item["antiguedad_dias"],
+            label=item["label"]
+        )
+        for item in dataset_dict
+    ]
+
+
+def combine_datasets(saved_dataset: List[ClientFeatures], new_dataset: List[ClientFeatures]) -> List[ClientFeatures]:
+    """Combine saved dataset with new dataset from database"""
+    # Simple concatenation - could add deduplication logic based on client ID if needed
+    return saved_dataset + new_dataset
+
+
+def train_model_with_type_incremental(
+    new_dataset: List[ClientFeatures],
+    model_type: str = "logistic",
+    use_saved: bool = True
+) -> TrainResult:
+    """Train model incrementally: combine saved dataset with new data"""
+    saved_dataset = load_training_dataset() if use_saved else []
+    
+    if saved_dataset:
+        combined_dataset = combine_datasets(saved_dataset, new_dataset)
+        print(f"Entrenamiento incremental: {len(saved_dataset)} datos guardados + {len(new_dataset)} nuevos = {len(combined_dataset)} total")
+    else:
+        combined_dataset = new_dataset
+        print(f"Primer entrenamiento: {len(new_dataset)} datos")
+    
+    # Save the combined dataset for future incremental training
+    save_training_dataset(combined_dataset)
+    
+    # Train with the combined dataset
+    return train_model_with_type(combined_dataset, model_type)
 
