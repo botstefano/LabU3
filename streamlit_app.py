@@ -864,7 +864,7 @@ def main():
         with kpi4:
             balance_label = "Balanceado" if 15 <= balance <= 85 else "Desbalanceado"
             balance_kind = "good" if 15 <= balance <= 85 else "warn"
-            metric_card("Balance de clases", f"{balance:.1f}%", balance_label)
+            metric_card("Balance de clases", f"{balance:.1f}%")
             status_pill(balance_label, balance_kind)
 
         st.divider()
