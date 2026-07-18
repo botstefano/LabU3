@@ -16,6 +16,8 @@ from sklearn.svm import SVC
 from sklearn.neural_network import MLPClassifier
 from sklearn.model_selection import train_test_split, cross_val_score, StratifiedKFold
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, confusion_matrix, roc_auc_score, roc_curve
+from sklearn.model_selection import learning_curve
+from sklearn.calibration import calibration_curve
 from scipy import stats
 
 from app.ml.features import ClientFeatures, features_to_vector, FEATURE_NAMES
@@ -87,6 +89,14 @@ class CompareModelsResult:
     correlation_matrix: Optional[Dict[str, Dict[str, float]]] = None
     roc_curves: Optional[Dict[str, Dict[str, List[float]]]] = None
     out_of_fold_predictions: Optional[Dict[str, np.ndarray]] = None  # model_name -> predictions
+    # Additional statistical tests
+    wilcoxon_tests: Optional[Dict[str, Any]] = None
+    mcnemar_tests: Optional[Dict[str, Any]] = None
+    bootstrap_intervals: Optional[Dict[str, Dict[str, Tuple[float, float]]]] = None
+    variance_analysis: Optional[Dict[str, Dict[str, float]]] = None
+    learning_curves: Optional[Dict[str, Dict[str, List[float]]]] = None
+    calibration_curves: Optional[Dict[str, Dict[str, List[float]]]] = None
+    feature_importance_stability: Optional[Dict[str, Dict[str, float]]] = None
 
 
 def _build_pipeline(model_type: Literal["logistic", "random_forest", "svm", "gradient_boosting", "mlp"]) -> Pipeline:
@@ -391,6 +401,185 @@ def _compute_roc_curves(X: np.ndarray, y: np.ndarray, models_config: Dict[str, s
     return roc_curves
 
 
+def _compute_wilcoxon_tests(best_f1_scores: List[float], model_results: Dict[str, Dict[str, List[float]]], best_model: str, models_config: Dict[str, str]) -> Dict[str, Any]:
+    """Compute Wilcoxon signed-rank tests (non-parametric alternative to t-test)"""
+    wilcoxon_tests = {}
+    
+    for model_type, model_name in models_config.items():
+        if model_name != best_model and model_type in model_results:
+            other_f1_scores = model_results[model_type]['f1_scores']
+            try:
+                stat, p_value = stats.wilcoxon(best_f1_scores, other_f1_scores)
+                wilcoxon_tests[f"{best_model}_vs_{model_name}"] = {
+                    "statistic": float(stat),
+                    "p_value": float(p_value),
+                    "significant": p_value < 0.05
+                }
+            except Exception as e:
+                wilcoxon_tests[f"{best_model}_vs_{model_name}"] = {
+                    "error": str(e),
+                    "significant": False
+                }
+    
+    return wilcoxon_tests
+
+
+def _compute_mcnemar_tests(y_true: np.ndarray, predictions: Dict[str, np.ndarray], best_model: str) -> Dict[str, Any]:
+    """Compute McNemar's test for binary classifier comparison"""
+    from statsmodels.stats.contingency_tables import mcnemar
+    
+    mcnemar_tests = {}
+    
+    if best_model not in predictions:
+        return mcnemar_tests
+    
+    best_pred = predictions[best_model]
+    
+    for model_name, pred in predictions.items():
+        if model_name != best_model:
+            try:
+                # Create contingency table
+                # Both correct, Best correct/Other wrong, Best wrong/Other correct, Both wrong
+                both_correct = np.sum((best_pred == y_true) & (pred == y_true))
+                best_correct = np.sum((best_pred == y_true) & (pred != y_true))
+                other_correct = np.sum((best_pred != y_true) & (pred == y_true))
+                both_wrong = np.sum((best_pred != y_true) & (pred != y_true))
+                
+                contingency = [[both_correct, best_correct], [other_correct, both_wrong]]
+                
+                result = mcnemar(contingency, exact=False, correction=True)
+                mcnemar_tests[f"{best_model}_vs_{model_name}"] = {
+                    "statistic": float(result.statistic),
+                    "p_value": float(result.pvalue),
+                    "significant": result.pvalue < 0.05,
+                    "contingency_table": contingency
+                }
+            except Exception as e:
+                mcnemar_tests[f"{best_model}_vs_{model_name}"] = {
+                    "error": str(e),
+                    "significant": False
+                }
+    
+    return mcnemar_tests
+
+
+def _compute_bootstrap_intervals(scores: List[float], n_bootstrap: int = 1000, confidence: float = 0.95) -> Tuple[float, float]:
+    """Compute bootstrap confidence intervals"""
+    bootstrap_means = []
+    n = len(scores)
+    
+    for _ in range(n_bootstrap):
+        sample = np.random.choice(scores, size=n, replace=True)
+        bootstrap_means.append(np.mean(sample))
+    
+    alpha = (1 - confidence) / 2
+    lower = np.percentile(bootstrap_means, alpha * 100)
+    upper = np.percentile(bootstrap_means, (1 - alpha) * 100)
+    
+    return (float(lower), float(upper))
+
+
+def _compute_variance_analysis(results: List[ModelComparisonResult]) -> Dict[str, Dict[str, float]]:
+    """Compute variance analysis for model stability"""
+    variance_analysis = {}
+    
+    for result in results:
+        variance_analysis[result.model_name] = {
+            "f1_variance": float(np.var(result.f1_scores)),
+            "f1_std": float(result.f1_std),
+            "f1_cv": float(result.f1_std / result.f1_mean) if result.f1_mean > 0 else 0.0,
+            "stability": "Alta" if result.f1_std < 0.05 else "Media" if result.f1_std < 0.1 else "Baja"
+        }
+    
+    return variance_analysis
+
+
+def _compute_learning_curves(X: np.ndarray, y: np.ndarray, model_types: Dict[str, str], models_config: Dict[str, str]) -> Dict[str, Dict[str, List[float]]]:
+    """Compute learning curves for all models"""
+    learning_curves = {}
+    
+    train_sizes = np.linspace(0.1, 1.0, 10)
+    
+    for model_type, model_name in models_config.items():
+        try:
+            pipeline = _build_pipeline(model_type)
+            
+            train_sizes_abs, train_scores, val_scores = learning_curve(
+                pipeline, X, y, cv=5, n_jobs=-1,
+                train_sizes=train_sizes, scoring='f1'
+            )
+            
+            learning_curves[model_name] = {
+                "train_sizes": train_sizes_abs.tolist(),
+                "train_scores_mean": np.mean(train_scores, axis=1).tolist(),
+                "train_scores_std": np.std(train_scores, axis=1).tolist(),
+                "val_scores_mean": np.mean(val_scores, axis=1).tolist(),
+                "val_scores_std": np.std(val_scores, axis=1).tolist()
+            }
+        except Exception as e:
+            learning_curves[model_name] = {"error": str(e)}
+    
+    return learning_curves
+
+
+def _compute_calibration_curves(X: np.ndarray, y: np.ndarray, predictions: Dict[str, np.ndarray], model_types: Dict[str, str], models_config: Dict[str, str]) -> Dict[str, Dict[str, List[float]]]:
+    """Compute calibration curves for models that support predict_proba"""
+    calibration_curves = {}
+    
+    for model_type, model_name in models_config.items():
+        try:
+            pipeline = _build_pipeline(model_type)
+            pipeline.fit(X, y)
+            
+            if hasattr(pipeline, 'predict_proba'):
+                prob_pos = pipeline.predict_proba(X)[:, 1]
+                fraction_of_positives, mean_predicted_value = calibration_curve(y, prob_pos, n_bins=10)
+                
+                calibration_curves[model_name] = {
+                    "fraction_of_positives": fraction_of_positives.tolist(),
+                    "mean_predicted_value": mean_predicted_value.tolist()
+                }
+            else:
+                calibration_curves[model_name] = {"error": "Model does not support predict_proba"}
+        except Exception as e:
+            calibration_curves[model_name] = {"error": str(e)}
+    
+    return calibration_curves
+
+
+def _compute_feature_importance_stability(results: List[ModelComparisonResult]) -> Dict[str, Dict[str, float]]:
+    """Compute stability analysis of feature importance across models"""
+    feature_importance_stability = {}
+    
+    # Collect all features across models
+    all_features = set()
+    for result in results:
+        all_features.update(result.feature_importance.keys())
+    
+    all_features = sorted(all_features)
+    
+    # Compute coefficient of variation for each feature across models
+    for feature in all_features:
+        values = []
+        for result in results:
+            if feature in result.feature_importance:
+                values.append(result.feature_importance[feature])
+        
+        if values and len(values) > 1:
+            mean_val = np.mean(values)
+            std_val = np.std(values)
+            cv = std_val / mean_val if mean_val > 0 else 0
+            
+            feature_importance_stability[feature] = {
+                "mean": float(mean_val),
+                "std": float(std_val),
+                "cv": float(cv),
+                "stability": "Alta" if cv < 0.3 else "Media" if cv < 0.5 else "Baja"
+            }
+    
+    return feature_importance_stability
+
+
 def compare_models(dataset: List[ClientFeatures]) -> CompareModelsResult:
     """Compare multiple models using cross-validation and statistical analysis"""
     n_muestras = len(dataset)
@@ -542,6 +731,32 @@ def compare_models(dataset: List[ClientFeatures]) -> CompareModelsResult:
                     "significant": p_value < 0.05
                 }
 
+    # Additional statistical tests
+    wilcoxon_tests = _compute_wilcoxon_tests(best_f1_scores, model_results, best_model, models_config) if best_f1_scores else {}
+    
+    mcnemar_tests = _compute_mcnemar_tests(y, out_of_fold_predictions, best_model) if out_of_fold_predictions else {}
+    
+    # Bootstrap confidence intervals for all models
+    bootstrap_intervals = {}
+    for result in results:
+        lower, upper = _compute_bootstrap_intervals(result.f1_scores)
+        bootstrap_intervals[result.model_name] = {
+            "f1_lower": lower,
+            "f1_upper": upper
+        }
+    
+    # Variance analysis for model stability
+    variance_analysis = _compute_variance_analysis(results)
+    
+    # Learning curves
+    learning_curves = _compute_learning_curves(X, y, model_types, models_config)
+    
+    # Calibration curves
+    calibration_curves = _compute_calibration_curves(X, y, out_of_fold_predictions, model_types, models_config)
+    
+    # Feature importance stability
+    feature_importance_stability = _compute_feature_importance_stability(results)
+
     # Generate recommendation
     if best_f1 > 0.8:
         recommendation = f"El modelo {best_model} muestra un rendimiento excelente (F1={best_f1:.3f}). Se recomienda su implementación en producción."
@@ -560,7 +775,14 @@ def compare_models(dataset: List[ClientFeatures]) -> CompareModelsResult:
         statistical_tests=statistical_tests,
         correlation_matrix=correlation_matrix,
         roc_curves=roc_curves,
-        out_of_fold_predictions=out_of_fold_predictions
+        out_of_fold_predictions=out_of_fold_predictions,
+        wilcoxon_tests=wilcoxon_tests,
+        mcnemar_tests=mcnemar_tests,
+        bootstrap_intervals=bootstrap_intervals,
+        variance_analysis=variance_analysis,
+        learning_curves=learning_curves,
+        calibration_curves=calibration_curves,
+        feature_importance_stability=feature_importance_stability
     )
 
 

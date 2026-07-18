@@ -886,6 +886,63 @@ def main():
                 ])
                 st.dataframe(tests_df, use_container_width=True)
 
+            # Wilcoxon tests
+            if result.wilcoxon_tests:
+                st.container(border=True).markdown("### 🔬 Wilcoxon Signed-Rank Test (no paramétrico)")
+                wilcoxon_df = pd.DataFrame([
+                    {
+                        "Comparación": test,
+                        "statistic": f"{data['statistic']:.3f}" if 'statistic' in data else "N/A",
+                        "p-value": f"{data['p_value']:.4f}" if 'p_value' in data else "N/A",
+                        "Significativo": "✅ Sí" if data.get('significant', False) else "❌ No"
+                    }
+                    for test, data in result.wilcoxon_tests.items()
+                ])
+                st.dataframe(wilcoxon_df, use_container_width=True)
+
+            # McNemar tests
+            if result.mcnemar_tests:
+                st.container(border=True).markdown("### 🔬 McNemar's Test (clasificadores binarios)")
+                mcnemar_df = pd.DataFrame([
+                    {
+                        "Comparación": test,
+                        "statistic": f"{data['statistic']:.3f}" if 'statistic' in data else "N/A",
+                        "p-value": f"{data['p_value']:.4f}" if 'p_value' in data else "N/A",
+                        "Significativo": "✅ Sí" if data.get('significant', False) else "❌ No"
+                    }
+                    for test, data in result.mcnemar_tests.items()
+                ])
+                st.dataframe(mcnemar_df, use_container_width=True)
+
+            # Bootstrap intervals
+            if result.bootstrap_intervals:
+                st.container(border=True).markdown("### 📊 Bootstrap Confidence Intervals (95%)")
+                bootstrap_df = pd.DataFrame([
+                    {
+                        "Modelo": model,
+                        "F1 Lower": f"{data['f1_lower']:.3f}",
+                        "F1 Upper": f"{data['f1_upper']:.3f}",
+                        "Intervalo": f"[{data['f1_lower']:.3f}, {data['f1_upper']:.3f}]"
+                    }
+                    for model, data in result.bootstrap_intervals.items()
+                ])
+                st.dataframe(bootstrap_df, use_container_width=True)
+
+            # Variance analysis
+            if result.variance_analysis:
+                st.container(border=True).markdown("### 📈 Análisis de Varianza (Estabilidad)")
+                variance_df = pd.DataFrame([
+                    {
+                        "Modelo": model,
+                        "Varianza F1": f"{data['f1_variance']:.4f}",
+                        "Std F1": f"{data['f1_std']:.4f}",
+                        "CV": f"{data['f1_cv']:.3f}",
+                        "Estabilidad": data['stability']
+                    }
+                    for model, data in result.variance_analysis.items()
+                ])
+                st.dataframe(variance_df, use_container_width=True)
+
             st.divider()
 
             # ROC Curves and Correlation in grid
@@ -990,6 +1047,90 @@ def main():
 
                 variance_df = pd.DataFrame(variance_data)
                 st.dataframe(variance_df, use_container_width=True)
+
+            st.divider()
+
+            # Learning curves
+            if result.learning_curves:
+                st.container(border=True).markdown("### 📈 Learning Curves")
+                st.info("Curvas de aprendizaje: rendimiento vs tamaño del dataset")
+                
+                for model_name, data in result.learning_curves.items():
+                    if "error" not in data:
+                        fig = go.Figure()
+                        fig.add_trace(go.Scatter(
+                            x=data['train_sizes'],
+                            y=data['train_scores_mean'],
+                            mode='lines+markers',
+                            name='Train',
+                            line=dict(color='blue')
+                        ))
+                        fig.add_trace(go.Scatter(
+                            x=data['train_sizes'],
+                            y=data['val_scores_mean'],
+                            mode='lines+markers',
+                            name='Validation',
+                            line=dict(color='red')
+                        ))
+                        fig.update_layout(
+                            title=f"Learning Curve - {model_name}",
+                            xaxis_title="Tamaño del dataset",
+                            yaxis_title="F1-Score",
+                            height=400
+                        )
+                        st.plotly_chart(fig, use_container_width=True, key=f"learning_curve_{model_name.replace(' ', '_')}")
+
+            st.divider()
+
+            # Calibration curves
+            if result.calibration_curves:
+                st.container(border=True).markdown("### 📊 Calibration Curves")
+                st.info("Curvas de calibración: verifican si las probabilidades están bien calibradas")
+                
+                for model_name, data in result.calibration_curves.items():
+                    if "error" not in data:
+                        fig = go.Figure()
+                        fig.add_trace(go.Scatter(
+                            x=data['mean_predicted_value'],
+                            y=data['fraction_of_positives'],
+                            mode='lines+markers',
+                            name=model_name,
+                            line=dict(width=2)
+                        ))
+                        fig.add_trace(go.Scatter(
+                            x=[0, 1],
+                            y=[0, 1],
+                            mode='lines',
+                            name='Perfect Calibration',
+                            line=dict(color='gray', dash='dash')
+                        ))
+                        fig.update_layout(
+                            title=f"Calibration Curve - {model_name}",
+                            xaxis_title="Probabilidad predicha media",
+                            yaxis_title="Fracción de positivos",
+                            height=400
+                        )
+                        st.plotly_chart(fig, use_container_width=True, key=f"calibration_curve_{model_name.replace(' ', '_')}")
+
+            st.divider()
+
+            # Feature importance stability
+            if result.feature_importance_stability:
+                st.container(border=True).markdown("### 🎯 Estabilidad de Feature Importance")
+                st.info("Análisis de estabilidad de la importancia de features entre modelos")
+                
+                stability_data = []
+                for feature, data in result.feature_importance_stability.items():
+                    stability_data.append({
+                        "Feature": feature,
+                        "Media": f"{data['mean']:.3f}",
+                        "Std": f"{data['std']:.3f}",
+                        "CV": f"{data['cv']:.3f}",
+                        "Estabilidad": data['stability']
+                    })
+                
+                stability_df = pd.DataFrame(stability_data)
+                st.dataframe(stability_df, use_container_width=True)
 
         with tab4:
             # Detailed analysis view
