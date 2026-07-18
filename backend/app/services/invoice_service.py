@@ -6,7 +6,7 @@ comprobantes y las transiciones de estado de una factura.
 """
 import uuid
 from datetime import date
-from typing import Tuple, Optional
+from typing import TYPE_CHECKING, Tuple, Optional
 
 from sqlalchemy.orm import Session
 
@@ -18,7 +18,9 @@ from app.repositories.invoice_repository import InvoiceRepository
 from app.repositories.payment_repository import PaymentRepository
 from app.repositories.settings_repository import SettingsRepository
 from app.schemas.invoice import InvoiceCreate
-from app.services.risk_service import RiskService
+
+if TYPE_CHECKING:
+    from app.services.risk_service import RiskService
 
 settings = get_settings()
 
@@ -30,7 +32,6 @@ class InvoiceService:
         self.client_repo = ClientRepository(db)
         self.payment_repo = PaymentRepository(db)
         self.settings_repo = SettingsRepository(db)
-        self.risk_service = RiskService(db)
 
     def _igv_porcentaje(self) -> float:
         valores = self.settings_repo.get_all()
@@ -85,7 +86,9 @@ class InvoiceService:
         # Calcular riesgo del cliente automáticamente
         riesgo_alerta = None
         try:
-            riesgo = self.risk_service.score_client(data.client_id)
+            from app.services.risk_service import RiskService
+            risk_service = RiskService(self.db)
+            riesgo = risk_service.score_client(data.client_id)
             if riesgo.score > 0.7:  # Riesgo alto (>70%)
                 riesgo_alerta = {
                     "nivel": riesgo.nivel,
