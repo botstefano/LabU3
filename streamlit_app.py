@@ -903,24 +903,30 @@ def main():
             # McNemar tests
             if result.mcnemar_tests:
                 st.container(border=True).markdown("### 🔬 McNemar's Test (clasificadores binarios)")
-                mcnemar_data = []
-                for test, data in result.mcnemar_tests.items():
-                    if isinstance(data, dict):
-                        mcnemar_data.append({
-                            "Comparación": test,
-                            "statistic": f"{data['statistic']:.3f}" if 'statistic' in data else "N/A",
-                            "p-value": f"{data['p_value']:.4f}" if 'p_value' in data else "N/A",
-                            "Significativo": "✅ Sí" if data.get('significant', False) else "❌ No"
-                        })
-                    else:
-                        mcnemar_data.append({
-                            "Comparación": test,
-                            "statistic": "N/A",
-                            "p-value": "N/A",
-                            "Significativo": "N/A"
-                        })
-                mcnemar_df = pd.DataFrame(mcnemar_data)
-                st.dataframe(mcnemar_df, use_container_width=True)
+                
+                # Check if there's an error message (statsmodels not installed)
+                if "error" in result.mcnemar_tests and isinstance(result.mcnemar_tests["error"], str):
+                    st.warning(f"⚠️ {result.mcnemar_tests['error']}")
+                    st.info("Para habilitar McNemar's test, instala statsmodels: pip install statsmodels")
+                else:
+                    mcnemar_data = []
+                    for test, data in result.mcnemar_tests.items():
+                        if isinstance(data, dict):
+                            mcnemar_data.append({
+                                "Comparación": test,
+                                "statistic": f"{data['statistic']:.3f}" if 'statistic' in data else "N/A",
+                                "p-value": f"{data['p_value']:.4f}" if 'p_value' in data else "N/A",
+                                "Significativo": "✅ Sí" if data.get('significant', False) else "❌ No"
+                            })
+                        else:
+                            mcnemar_data.append({
+                                "Comparación": test,
+                                "statistic": "N/A",
+                                "p-value": "N/A",
+                                "Significativo": "N/A"
+                            })
+                    mcnemar_df = pd.DataFrame(mcnemar_data)
+                    st.dataframe(mcnemar_df, use_container_width=True)
 
             # Bootstrap intervals
             if result.bootstrap_intervals:
