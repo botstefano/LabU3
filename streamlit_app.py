@@ -43,8 +43,17 @@ st.set_page_config(
 @st.cache_resource
 def get_db_engine():
     from app.core.config import get_settings
-    settings = get_settings()
-    return create_engine(settings.database_url)
+    try:
+        settings = get_settings()
+        engine = create_engine(settings.database_url)
+        # Test connection
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return engine
+    except Exception as e:
+        st.error(f"❌ Error conectando a la base de datos: {e}")
+        st.error("Verifica que DATABASE_URL esté configurado correctamente en .env")
+        raise
 
 def load_data():
     """Load data from database"""
@@ -62,34 +71,50 @@ def load_data():
     return clients_df, invoices_df, payments_df
 
 def compute_features_from_db(clients_df, invoices_df, payments_df):
-    """Compute features from database data"""
-    # Convert to SQLAlchemy-like objects
+    """Compute features from database data using vectorized operations for better scalability"""
     from app.models.client import Client
     from app.models.invoice import Invoice
     from app.models.payment import Payment
+    from datetime import datetime
 
     dataset = []
 
-    for _, client in clients_df.iterrows():
-        client_invoices = invoices_df[invoices_df['client_id'] == client['id']]
+    # Vectorized approach: group by client_id
+    # Group invoices by client
+    invoices_grouped = invoices_df.groupby('client_id')
+    
+    # Group payments by invoice_id
+    payments_grouped = payments_df.groupby('invoice_id')
 
-        payments_by_invoice = {}
-        for _, inv in client_invoices.iterrows():
-            invoice_payments = payments_df[payments_df['invoice_id'] == inv['id']]
-            payment_objs = []
-            for _, pay in invoice_payments.iterrows():
-                payment_obj = Payment(
-                    id=pay['id'],
-                    invoice_id=pay['invoice_id'],
-                    fecha_pago=pay['fecha_pago'],
-                    monto=pay['monto'],
-                    metodo_pago=pay['metodo_pago'],
-                    registrado_por=pay['registrado_por'],
-                    created_at=pay['created_at']
-                )
-                payment_objs.append(payment_obj)
-            payments_by_invoice[str(inv['id'])] = payment_objs
+    for _, client in clients_df.iterrows():
+        client_id = client['id']
         
+        # Get client invoices using groupby (faster than filtering)
+        if client_id not in invoices_grouped.groups:
+            continue
+            
+        client_invoices = invoices_grouped.get_group(client_id)
+        
+        # Build payments_by_invoice using vectorized operations
+        payments_by_invoice = {}
+        for inv_id in client_invoices['id']:
+            if inv_id in payments_grouped.groups:
+                invoice_payments = payments_grouped.get_group(inv_id)
+                payment_objs = []
+                for _, pay in invoice_payments.iterrows():
+                    payment_obj = Payment(
+                        id=pay['id'],
+                        invoice_id=pay['invoice_id'],
+                        fecha_pago=pay['fecha_pago'],
+                        monto=pay['monto'],
+                        metodo_pago=pay['metodo_pago'],
+                        registrado_por=pay['registrado_por'],
+                        created_at=pay['created_at']
+                    )
+                    payment_objs.append(payment_obj)
+                payments_by_invoice[str(inv_id)] = payment_objs
+        
+        # Create client object
         client_obj = Client(
             id=client['id'],
             tipo_documento=client['tipo_documento'],
@@ -100,6 +125,7 @@ def compute_features_from_db(clients_df, invoices_df, payments_df):
             created_at=client['created_at']
         )
         
+        # Create invoice objects
         invoices_obj = []
         for _, inv in client_invoices.iterrows():
             inv_obj = Invoice(
@@ -423,6 +449,7 @@ def main():
                     df = pd.read_csv(uploaded_file)
                     dataset = []
 
+                    failed_rows = 0
                     for _, row in df.iterrows():
                         try:
                             features = ClientFeatures(
@@ -437,9 +464,10 @@ def main():
                             dataset.append(features)
                         except Exception as e:
                             st.warning(f"Omitiendo fila inválida: {e}")
+                            failed_rows += 1
                             continue
 
-                    st.success(f"✅ Dataset cargado desde CSV: {len(dataset)} muestras")
+                    st.success(f"✅ Dataset cargado desde CSV: {len(dataset)} de {len(df)} filas ({failed_rows} fallidas)")
                     st.session_state.dataset = dataset
                     st.session_state.data_source = "CSV"
                     st.session_state.dataset_size = len(dataset)
@@ -580,7 +608,7 @@ def main():
 
         dataset = st.session_state.dataset
 
-        st.info(f"📊 Dataset cargado: {len(dataset)} muestras desdefuente: {st.session_state.data_source}")
+        st.info(f"📊 Dataset cargado: {len(dataset)} muestras desde fuente: {st.session_state.data_source}")
 
         st.divider()
 
@@ -836,21 +864,30 @@ def main():
 
         with tab6:
             st.markdown("### ⚠️ Análisis de Errores")
-            from app.ml.risk_model import _build_pipeline
+            st.info("ℹ️ Este análisis usa predicciones out-of-fold del cross-validation, lo que proporciona una estimación más realista del error que las predicciones in-sample.")
+            
             X = np.array([features_to_vector(f) for f in dataset])
             y = np.array([f.label for f in dataset])
 
-            model_type_mapping = {
-                "Logistic Regression": "logistic",
-                "Random Forest": "random_forest",
-                "Support Vector Machine": "svm",
-                "Gradient Boosting": "gradient_boosting",
-                "Neural Network (MLP)": "mlp"
-            }
-            best_model_type = model_type_mapping.get(result.best_model, "logistic")
-            pipeline = _build_pipeline(best_model_type)
-            pipeline.fit(X, y)
-            y_pred = pipeline.predict(X)
+            # Use out-of-fold predictions if available
+            if result.out_of_fold_predictions and result.best_model in result.out_of_fold_predictions:
+                y_pred = result.out_of_fold_predictions[result.best_model]
+                st.success("✅ Usando predicciones out-of-fold del cross-validation")
+            else:
+                # Fallback to in-sample predictions
+                st.warning("⚠️ Predicciones out-of-fold no disponibles, usando predicciones in-sample (pueden ser optimistas)")
+                from app.ml.risk_model import _build_pipeline
+                model_type_mapping = {
+                    "Logistic Regression": "logistic",
+                    "Random Forest": "random_forest",
+                    "Support Vector Machine": "svm",
+                    "Gradient Boosting": "gradient_boosting",
+                    "Neural Network (MLP)": "mlp"
+                }
+                best_model_type = model_type_mapping.get(result.best_model, "logistic")
+                pipeline = _build_pipeline(best_model_type)
+                pipeline.fit(X, y)
+                y_pred = pipeline.predict(X)
 
             misclassified = []
             for i, (true_label, pred_label) in enumerate(zip(y, y_pred)):

@@ -86,6 +86,7 @@ class CompareModelsResult:
     statistical_tests: Dict[str, Any]
     correlation_matrix: Optional[Dict[str, Dict[str, float]]] = None
     roc_curves: Optional[Dict[str, Dict[str, List[float]]]] = None
+    out_of_fold_predictions: Optional[Dict[str, np.ndarray]] = None  # model_name -> predictions
 
 
 def _build_pipeline(model_type: Literal["logistic", "random_forest", "svm", "gradient_boosting", "mlp"]) -> Pipeline:
@@ -435,6 +436,7 @@ def compare_models(dataset: List[ClientFeatures]) -> CompareModelsResult:
     
     results = []
     model_results = {}  # Store results for statistical tests
+    out_of_fold_predictions = {}  # Store out-of-fold predictions for error analysis
 
     for model_type, model_name in models_config.items():
         print(f"Evaluating {model_name}...")
@@ -457,6 +459,13 @@ def compare_models(dataset: List[ClientFeatures]) -> CompareModelsResult:
             roc_auc_scores = cross_val_score(pipeline, X, y, cv=cv, scoring='roc_auc')
         except:
             roc_auc_scores = np.array([0.0])  # Fallback if ROC not supported
+        
+        # Get out-of-fold predictions for error analysis
+        try:
+            oof_predictions = cross_val_predict(pipeline, X, y, cv=cv, method='predict')
+            out_of_fold_predictions[model_name] = oof_predictions
+        except:
+            out_of_fold_predictions[model_name] = None
         
         # Compute feature importance
         feature_importance = _compute_feature_importance(pipeline, model_type)
@@ -550,7 +559,8 @@ def compare_models(dataset: List[ClientFeatures]) -> CompareModelsResult:
         recommendation=recommendation,
         statistical_tests=statistical_tests,
         correlation_matrix=correlation_matrix,
-        roc_curves=roc_curves
+        roc_curves=roc_curves,
+        out_of_fold_predictions=out_of_fold_predictions
     )
 
 
