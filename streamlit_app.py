@@ -58,7 +58,19 @@ def compute_features_from_db(clients_df, invoices_df, payments_df):
         payments_by_invoice = {}
         for _, inv in client_invoices.iterrows():
             invoice_payments = payments_df[payments_df['invoice_id'] == inv['id']]
-            payments_by_invoice[str(inv['id'])] = invoice_payments.to_dict('records')
+            payment_objs = []
+            for _, pay in invoice_payments.iterrows():
+                payment_obj = Payment(
+                    id=pay['id'],
+                    invoice_id=pay['invoice_id'],
+                    fecha_pago=pay['fecha_pago'],
+                    monto=pay['monto'],
+                    metodo_pago=pay['metodo_pago'],
+                    registrado_por=pay['registrado_por'],
+                    created_at=pay['created_at']
+                )
+                payment_objs.append(payment_obj)
+            payments_by_invoice[str(inv['id'])] = payment_objs
         
         # Convert to SQLAlchemy-like objects
         from app.models.client import Client
@@ -87,6 +99,7 @@ def compute_features_from_db(clients_df, invoices_df, payments_df):
                 igv=inv['igv'],
                 total=inv['total'],
                 estado=inv['estado'],
+                created_by=inv['created_by'] if 'created_by' in inv else client['id'],
                 created_at=inv['created_at']
             )
             invoices_obj.append(inv_obj)
