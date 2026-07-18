@@ -903,15 +903,23 @@ def main():
             # McNemar tests
             if result.mcnemar_tests:
                 st.container(border=True).markdown("### 🔬 McNemar's Test (clasificadores binarios)")
-                mcnemar_df = pd.DataFrame([
-                    {
-                        "Comparación": test,
-                        "statistic": f"{data['statistic']:.3f}" if 'statistic' in data else "N/A",
-                        "p-value": f"{data['p_value']:.4f}" if 'p_value' in data else "N/A",
-                        "Significativo": "✅ Sí" if data.get('significant', False) else "❌ No"
-                    }
-                    for test, data in result.mcnemar_tests.items()
-                ])
+                mcnemar_data = []
+                for test, data in result.mcnemar_tests.items():
+                    if isinstance(data, dict):
+                        mcnemar_data.append({
+                            "Comparación": test,
+                            "statistic": f"{data['statistic']:.3f}" if 'statistic' in data else "N/A",
+                            "p-value": f"{data['p_value']:.4f}" if 'p_value' in data else "N/A",
+                            "Significativo": "✅ Sí" if data.get('significant', False) else "❌ No"
+                        })
+                    else:
+                        mcnemar_data.append({
+                            "Comparación": test,
+                            "statistic": "N/A",
+                            "p-value": "N/A",
+                            "Significativo": "N/A"
+                        })
+                mcnemar_df = pd.DataFrame(mcnemar_data)
                 st.dataframe(mcnemar_df, use_container_width=True)
 
             # Bootstrap intervals
