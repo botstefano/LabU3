@@ -11,7 +11,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 from sqlalchemy import create_engine
-from app.ml.risk_model import compare_models, _build_pipeline, _compute_correlation_matrix, _compute_roc_curves
+from app.ml.risk_model import compare_models, _compute_correlation_matrix, _compute_roc_curves
 from app.ml.features import compute_client_features, features_to_vector, FEATURE_NAMES
 from app.repositories.client_repository import ClientRepository
 from app.repositories.invoice_repository import InvoiceRepository
