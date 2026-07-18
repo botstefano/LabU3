@@ -80,7 +80,7 @@ def compute_features_from_db(clients_df, invoices_df, payments_df):
             inv_obj = Invoice(
                 id=inv['id'],
                 numero=inv['numero'],
-                cliente_id=inv['client_id'],
+                client_id=inv['client_id'],
                 fecha_emision=inv['fecha_emision'],
                 fecha_vencimiento=inv['fecha_vencimiento'],
                 subtotal=inv['subtotal'],
