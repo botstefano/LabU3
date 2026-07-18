@@ -570,15 +570,23 @@ def main():
 
     # Helper functions for UI components
     def metric_card(label, value, hint=None):
-        hint_html = f"<div class='hint'>{hint}</div>" if hint else ""
-        st.markdown(
-            f"""<div class="metric-card">
-                    <div class="label">{label}</div>
-                    <div class="value">{value}</div>
-                    {hint_html}
-                </div>""",
-            unsafe_allow_html=True
-        )
+        if hint:
+            st.markdown(
+                f"""<div class="metric-card">
+                        <div class="label">{label}</div>
+                        <div class="value">{value}</div>
+                        <div class="hint">{hint}</div>
+                    </div>""",
+                unsafe_allow_html=True
+            )
+        else:
+            st.markdown(
+                f"""<div class="metric-card">
+                        <div class="label">{label}</div>
+                        <div class="value">{value}</div>
+                    </div>""",
+                unsafe_allow_html=True
+            )
 
     def status_pill(text, kind="good"):
         css_class = {"good": "status-good", "warn": "status-warn", "bad": "status-bad"}.get(kind, "status-good")
@@ -1050,9 +1058,14 @@ def main():
             with kpi2:
                 metric_card("F1-score", f"{result.best_f1:.3f}")
             with kpi3:
-                st.markdown("<div class='metric-card'><div class='label'>Estado</div>", unsafe_allow_html=True)
+                st.markdown(
+                    f"""<div class="metric-card">
+                        <div class="label">Estado</div>
+                        <div class="value"></div>
+                    </div>""",
+                    unsafe_allow_html=True
+                )
                 status_pill(status_label, status_kind)
-                st.markdown("</div>", unsafe_allow_html=True)
 
             st.info(f"💡 {result.recommendation}")
 
