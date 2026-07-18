@@ -2,6 +2,8 @@ import streamlit as st
 import sys
 import os
 from pathlib import Path
+from datetime import datetime
+from io import BytesIO
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent / "backend"))
@@ -18,6 +20,16 @@ from app.repositories.invoice_repository import InvoiceRepository
 from app.repositories.payment_repository import PaymentRepository
 from app.services.invoice_service import InvoiceService
 from app.db.database import get_db
+
+try:
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
 
 # Page config
 st.set_page_config(
@@ -109,6 +121,131 @@ def compute_features_from_db(clients_df, invoices_df, payments_df):
             dataset.append(features)
     
     return dataset
+
+def generate_pdf_report(result, dataset_size, data_source):
+    """Generate PDF report with training results"""
+    if not REPORTLAB_AVAILABLE:
+        return None
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    styles = getSampleStyleSheet()
+
+    # Custom styles
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        textColor=colors.HexColor('#1e88e5'),
+        alignment=TA_CENTER,
+        spaceAfter=30
+    )
+
+    heading_style = ParagraphStyle(
+        'CustomHeading',
+        parent=styles['Heading2'],
+        fontSize=14,
+        textColor=colors.HexColor('#333333'),
+        spaceAfter=12
+    )
+
+    content = []
+
+    # Title
+    content.append(Paragraph("Reporte de Entrenamiento de Modelos ML", title_style))
+    content.append(Spacer(1, 12))
+
+    # Date and source
+    content.append(Paragraph(f"<b>Fecha:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
+    content.append(Paragraph(f"<b>Fuente de datos:</b> {data_source}", styles['Normal']))
+    content.append(Paragraph(f"<b>Tamaño del dataset:</b> {dataset_size} muestras", styles['Normal']))
+    content.append(Spacer(1, 12))
+
+    # Best Model
+    content.append(Paragraph("Mejor Modelo", heading_style))
+    best_model_data = [
+        ["Modelo", result.best_model],
+        ["F1-Score", f"{result.best_f1:.3f}"],
+        ["Estado", "Excelente" if result.best_f1 > 0.8 else "Bueno" if result.best_f1 > 0.7 else "Moderado"]
+    ]
+    best_model_table = Table(best_model_data, colWidths=[3, 2])
+    best_model_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#e3f2fd')),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (1, 0), (1, -1), colors.HexColor('#f5f5f5')),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ]))
+    content.append(best_model_table)
+    content.append(Spacer(1, 12))
+
+    # Recommendation
+    content.append(Paragraph("Recomendación", heading_style))
+    content.append(Paragraph(result.recommendation, styles['Normal']))
+    content.append(Spacer(1, 12))
+
+    # Comparison Table
+    content.append(Paragraph("Tabla Comparativa", heading_style))
+    comparison_data = [["Modelo", "F1", "Accuracy", "Precision", "Recall", "ROC-AUC", "Tiempo (s)"]]
+    for r in result.results:
+        comparison_data.append([
+            r.model_name,
+            f"{r.f1_mean:.3f} ± {r.f1_std:.3f}",
+            f"{r.accuracy_mean:.3f} ± {r.accuracy_std:.3f}",
+            f"{r.precision_mean:.3f} ± {r.precision_std:.3f}",
+            f"{r.recall_mean:.3f} ± {r.recall_std:.3f}",
+            f"{r.roc_auc_mean:.3f} ± {r.roc_auc_std:.3f}",
+            f"{r.training_time:.2f}"
+        ])
+
+    comparison_table = Table(comparison_data, colWidths=[2.5, 1, 1, 1, 1, 1, 0.8])
+    comparison_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e88e5')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
+    ]))
+    content.append(comparison_table)
+    content.append(Spacer(1, 12))
+
+    # Statistical Tests
+    if result.statistical_tests:
+        content.append(Paragraph("Tests Estadísticos", heading_style))
+        tests_data = [["Test", "p-value", "Significativo"]]
+        for test_name, test_data in result.statistical_tests.items():
+            tests_data.append([
+                test_name,
+                f"{test_data['p_value']:.4f}",
+                "Sí" if test_data['significant'] else "No"
+            ])
+
+        tests_table = Table(tests_data, colWidths=[3, 1.5, 1.5])
+        tests_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e88e5')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
+        ]))
+        content.append(tests_table)
+        content.append(Spacer(1, 12))
+
+    # Build PDF
+    doc.build(content)
+    buffer.seek(0)
+    return buffer
 
 def main():
     st.title("🧠 ML Risk Scoring - Model Comparison")
@@ -211,7 +348,22 @@ def main():
             col3.metric("Estado", "Excelente" if result.best_f1 > 0.8 else "Bueno" if result.best_f1 > 0.7 else "Moderado")
 
             st.info(result.recommendation)
-            
+
+            # PDF Download button
+            if REPORTLAB_AVAILABLE:
+                st.subheader("Descargar Reporte")
+                pdf_buffer = generate_pdf_report(result, len(dataset), data_source)
+                if pdf_buffer:
+                    st.download_button(
+                        label="📄 Descargar Reporte PDF",
+                        data=pdf_buffer,
+                        file_name=f"reporte_entrenamiento_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                        mime="application/pdf",
+                        type="primary"
+                    )
+            else:
+                st.warning("Para descargar PDF, instala reportlab: pip install reportlab")
+
             # Comparison table
             st.subheader("Tabla Comparativa")
             results_df = pd.DataFrame([
