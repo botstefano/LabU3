@@ -14,6 +14,11 @@ import plotly.graph_objects as go
 import plotly.express as px
 from sklearn.metrics import f1_score, precision_score, recall_score
 from sqlalchemy import create_engine, text
+try:
+    from mistralai.client import MistralClient
+    MISTRAL_AVAILABLE = True
+except ImportError:
+    MISTRAL_AVAILABLE = False
 from app.ml.risk_model import compare_models, _compute_correlation_matrix, _compute_roc_curves
 from app.ml.features import compute_client_features, features_to_vector, FEATURE_NAMES
 from app.repositories.client_repository import ClientRepository
@@ -149,6 +154,57 @@ def compute_features_from_db(clients_df, invoices_df, payments_df):
     
     return dataset
 
+def get_mistral_explanation(result):
+    """Get AI explanation of results using Mistral"""
+    if not MISTRAL_AVAILABLE:
+        return "Mistral AI no está disponible. Instala mistralai: pip install mistralai"
+    
+    api_key = os.getenv("MISTRAL_API_KEY")
+    if not api_key:
+        return "API key de Mistral no configurada. Agrega MISTRAL_API_KEY al archivo .env"
+    
+    try:
+        client = MistralClient(api_key=api_key)
+        
+        # Prepare prompt with results summary
+        prompt = f"""
+Analiza los siguientes resultados de entrenamiento de modelos de Machine Learning para predicción de riesgo de morosidad:
+
+**Mejor Modelo:** {result.best_model}
+**F1-Score:** {result.best_f1:.3f}
+**Recomendación:** {result.recommendation}
+
+**Comparación de Modelos:**
+"""
+        for r in result.results:
+            prompt += f"- {r.model_name}: F1={r.f1_mean:.3f}±{r.f1_std:.3f}, Accuracy={r.accuracy_mean:.3f}±{r.accuracy_std:.3f}\n"
+        
+        if result.statistical_tests:
+            prompt += "\n**Tests Estadísticos (t-test):**\n"
+            for test_name, test_data in result.statistical_tests.items():
+                prompt += f"- {test_name}: p-value={test_data['p_value']:.4f}, significativo={test_data['significant']}\n"
+        
+        prompt += """
+Explica en lenguaje claro y conciso (máximo 3 párrafos):
+1. ¿Qué significa el rendimiento del mejor modelo?
+2. ¿Cuál es la diferencia principal entre los modelos?
+3. ¿Qué recomendación práctica darías para implementar este sistema?
+"""
+        
+        response = client.chat.complete(
+            model="mistral-small-latest",
+            messages=[
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=500
+        )
+        
+        return response.choices[0].message.content
+        
+    except Exception as e:
+        return f"Error al obtener explicación de Mistral: {str(e)}"
+
+
 def generate_pdf_report(result, dataset_size, data_source):
     """Generate PDF report with training results"""
     if not REPORTLAB_AVAILABLE:
@@ -243,18 +299,19 @@ def generate_pdf_report(result, dataset_size, data_source):
     content.append(comparison_table)
     content.append(Spacer(1, 12))
 
-    # Statistical Tests
+    # Statistical Tests (t-test)
     if result.statistical_tests:
-        content.append(Paragraph("Tests Estadísticos", heading_style))
-        tests_data = [["Test", "p-value", "Significativo"]]
+        content.append(Paragraph("Tests Estadísticos (t-test pareado)", heading_style))
+        tests_data = [["Comparación", "t-statistic", "p-value", "Significativo"]]
         for test_name, test_data in result.statistical_tests.items():
             tests_data.append([
                 test_name,
+                f"{test_data['t_statistic']:.3f}",
                 f"{test_data['p_value']:.4f}",
                 "Sí" if test_data['significant'] else "No"
             ])
 
-        tests_table = Table(tests_data, colWidths=[3, 1.5, 1.5])
+        tests_table = Table(tests_data, colWidths=[3, 1.5, 1.5, 1.5])
         tests_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e88e5')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -268,6 +325,135 @@ def generate_pdf_report(result, dataset_size, data_source):
         ]))
         content.append(tests_table)
         content.append(Spacer(1, 12))
+
+    # Wilcoxon Tests
+    if result.wilcoxon_tests:
+        content.append(Paragraph("Wilcoxon Signed-Rank Test (no paramétrico)", heading_style))
+        wilcoxon_data = [["Comparación", "statistic", "p-value", "Significativo"]]
+        for test_name, test_data in result.wilcoxon_tests.items():
+            if isinstance(test_data, dict) and 'statistic' in test_data:
+                wilcoxon_data.append([
+                    test_name,
+                    f"{test_data['statistic']:.3f}",
+                    f"{test_data['p_value']:.4f}",
+                    "Sí" if test_data['significant'] else "No"
+                ])
+
+        if len(wilcoxon_data) > 1:
+            wilcoxon_table = Table(wilcoxon_data, colWidths=[3, 1.5, 1.5, 1.5])
+            wilcoxon_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e88e5')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 9),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
+            ]))
+            content.append(wilcoxon_table)
+            content.append(Spacer(1, 12))
+
+    # Bootstrap Confidence Intervals
+    if result.bootstrap_intervals:
+        content.append(Paragraph("Bootstrap Confidence Intervals (95%)", heading_style))
+        bootstrap_data = [["Modelo", "F1 Lower", "F1 Upper", "Intervalo"]]
+        for model_name, interval_data in result.bootstrap_intervals.items():
+            bootstrap_data.append([
+                model_name,
+                f"{interval_data['f1_lower']:.3f}",
+                f"{interval_data['f1_upper']:.3f}",
+                f"[{interval_data['f1_lower']:.3f}, {interval_data['f1_upper']:.3f}]"
+            ])
+
+        bootstrap_table = Table(bootstrap_data, colWidths=[2.5, 1.5, 1.5, 2])
+        bootstrap_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e88e5')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
+        ]))
+        content.append(bootstrap_table)
+        content.append(Spacer(1, 12))
+
+    # Variance Analysis
+    if result.variance_analysis:
+        content.append(Paragraph("Análisis de Varianza (Estabilidad)", heading_style))
+        variance_data = [["Modelo", "Varianza F1", "Std F1", "CV", "Estabilidad"]]
+        for model_name, variance_data_item in result.variance_analysis.items():
+            variance_data.append([
+                model_name,
+                f"{variance_data_item['f1_variance']:.4f}",
+                f"{variance_data_item['f1_std']:.4f}",
+                f"{variance_data_item['f1_cv']:.3f}",
+                variance_data_item['stability']
+            ])
+
+        variance_table = Table(variance_data, colWidths=[2.5, 1.5, 1.5, 1, 1.5])
+        variance_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e88e5')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
+        ]))
+        content.append(variance_table)
+        content.append(Spacer(1, 12))
+
+    # Feature Importance Stability
+    if result.feature_importance_stability:
+        content.append(Paragraph("Estabilidad de Feature Importance", heading_style))
+        stability_data = [["Feature", "Media", "Std", "CV", "Estabilidad"]]
+        for feature, stability_data_item in result.feature_importance_stability.items():
+            stability_data.append([
+                feature,
+                f"{stability_data_item['mean']:.3f}",
+                f"{stability_data_item['std']:.3f}",
+                f"{stability_data_item['cv']:.3f}",
+                stability_data_item['stability']
+            ])
+
+        stability_table = Table(stability_data, colWidths=[2.5, 1, 1, 1, 1.5])
+        stability_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e88e5')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
+        ]))
+        content.append(stability_table)
+        content.append(Spacer(1, 12))
+
+    # Methodology Section
+    content.append(Paragraph("Metodología", heading_style))
+    methodology_text = """
+    <b>Validación Cruzada:</b> Stratified K-Fold con n_splits ajustado dinámicamente según tamaño del dataset.
+    <b>Métricas:</b> F1-score, accuracy, precision, recall y ROC-AUC.
+    <b>Tests Estadísticos:</b> t-test pareado, Wilcoxon signed-rank test, Bootstrap confidence intervals.
+    <b>Análisis de Estabilidad:</b> Varianza entre folds, coeficiente de variación.
+    <b>Curvas de Aprendizaje:</b> Rendimiento vs tamaño del dataset.
+    <b>Calibración:</b> Curvas de calibración de probabilidades predichas.
+    """
+    content.append(Paragraph(methodology_text, styles['Normal']))
+    content.append(Spacer(1, 12))
+
+    # Footer
+    content.append(Paragraph(f"Generado por ML Risk Scoring - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", 
+                            ParagraphStyle('Footer', parent=styles['Normal'], fontSize=8, textColor=colors.gray, alignment=TA_CENTER)))
 
     # Build PDF
     doc.build(content)
@@ -668,11 +854,10 @@ def main():
         with kpi3:
             metric_card("Alto riesgo", alto_riesgo)
         with kpi4:
-            metric_card("Balance de clases", f"{balance:.1f}%")
-            if balance < 15 or balance > 85:
-                status_pill("Desbalanceado", "warn")
-            else:
-                status_pill("Balanceado", "good")
+            balance_label = "Balanceado" if 15 <= balance <= 85 else "Desbalanceado"
+            balance_kind = "good" if 15 <= balance <= 85 else "warn"
+            metric_card("Balance de clases", f"{balance:.1f}%", balance_label)
+            status_pill(balance_label, balance_kind)
 
         st.divider()
 
@@ -770,9 +955,36 @@ def main():
 
         # Training action
         if st.button("🚀 Entrenar y Comparar 5 Modelos", type="primary", use_container_width=True):
-            with st.spinner("Entrenando y comparando modelos con cross-validation..."):
+            progress_bar = st.progress(0, text="Iniciando entrenamiento...")
+            status_text = st.empty()
+            
+            try:
+                status_text.text("🔄 Preparando dataset...")
+                progress_bar.progress(10, text="Preparando dataset...")
+                
+                status_text.text("🤖 Entrenando Logistic Regression...")
+                progress_bar.progress(20, text="Entrenando Logistic Regression...")
+                
+                status_text.text("🤖 Entrenando Random Forest...")
+                progress_bar.progress(35, text="Entrenando Random Forest...")
+                
+                status_text.text("🤖 Entrenando Support Vector Machine...")
+                progress_bar.progress(50, text="Entrenando Support Vector Machine...")
+                
+                status_text.text("🤖 Entrenando Gradient Boosting...")
+                progress_bar.progress(65, text="Entrenando Gradient Boosting...")
+                
+                status_text.text("🤖 Entrenando Neural Network (MLP)...")
+                progress_bar.progress(80, text="Entrenando Neural Network (MLP)...")
+                
+                status_text.text("📊 Realizando tests estadísticos...")
+                progress_bar.progress(90, text="Realizando tests estadísticos...")
+                
                 result = compare_models(dataset)
-
+                
+                status_text.text("💾 Guardando mejor modelo...")
+                progress_bar.progress(95, text="Guardando mejor modelo...")
+                
                 # Save best model for production (incremental if from DB)
                 from app.ml.risk_model import train_model_with_type_incremental
 
@@ -790,9 +1002,17 @@ def main():
                 else:
                     train_model_with_type_incremental(dataset, best_model_type, use_saved=False)
 
+                progress_bar.progress(100, text="✅ Entrenamiento completado!")
+                status_text.text("✅ Entrenamiento completado exitosamente!")
+                
                 st.session_state.result = result
                 st.success("✅ Entrenamiento completado exitosamente!")
                 st.rerun()
+                
+            except Exception as e:
+                progress_bar.empty()
+                status_text.empty()
+                st.error(f"❌ Error durante el entrenamiento: {str(e)}")
 
         if 'result' in st.session_state:
             st.success("✅ Modelo entrenado. Ve a la sección 'Resultados' para ver el análisis completo.")
@@ -834,7 +1054,28 @@ def main():
                 status_pill(status_label, status_kind)
                 st.markdown("</div>", unsafe_allow_html=True)
 
-            st.info(f"� {result.recommendation}")
+            st.info(f"💡 {result.recommendation}")
+
+            st.divider()
+
+            # AI Explanation with Mistral
+            st.container(border=True).markdown("### 🤖 Explicación con IA (Mistral)")
+            
+            if not MISTRAL_AVAILABLE:
+                st.warning("⚠️ Mistral AI no está disponible. Instala mistralai: pip install mistralai")
+            elif not os.getenv("MISTRAL_API_KEY"):
+                st.warning("⚠️ API key de Mistral no configurada. Agrega MISTRAL_API_KEY al archivo .env")
+            else:
+                if st.button("🧠 Generar explicación con IA", type="secondary", use_container_width=True):
+                    with st.spinner("Generando explicación con Mistral AI..."):
+                        explanation = get_mistral_explanation(result)
+                        st.session_state.mistral_explanation = explanation
+                
+                if 'mistral_explanation' in st.session_state:
+                    st.markdown(st.session_state.mistral_explanation)
+                    st.caption("Explicación generada por Mistral AI")
+
+            st.divider()
 
             col_export, _ = st.columns([1, 2])
             with col_export:
@@ -902,13 +1143,12 @@ def main():
 
             # McNemar tests
             if result.mcnemar_tests:
-                st.container(border=True).markdown("### 🔬 McNemar's Test (clasificadores binarios)")
-                
                 # Check if there's an error message (statsmodels not installed)
                 if "error" in result.mcnemar_tests and isinstance(result.mcnemar_tests["error"], str):
-                    st.warning(f"⚠️ {result.mcnemar_tests['error']}")
-                    st.info("Para habilitar McNemar's test, instala statsmodels: pip install statsmodels")
+                    # Don't show the section if statsmodels is not installed
+                    pass
                 else:
+                    st.container(border=True).markdown("### 🔬 McNemar's Test (clasificadores binarios)")
                     mcnemar_data = []
                     for test, data in result.mcnemar_tests.items():
                         if isinstance(data, dict):
