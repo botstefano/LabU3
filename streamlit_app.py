@@ -333,7 +333,7 @@ def main():
         class_counts = dataset_df['label'].value_counts()
         fig = px.pie(values=class_counts.values, names=['Bajo Riesgo', 'Alto Riesgo'] if 0 in class_counts.index else ['Alto Riesgo'], hole=0.3)
         fig.update_layout(title="Balance de Clases")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key="class_distribution")
 
     with col2:
         st.subheader("Estadísticas Descriptivas")
@@ -349,7 +349,7 @@ def main():
     fig = px.histogram(dataset_df, x=selected_feature, color='label',
                       barmode='overlay', nbins=20,
                       title=f"Distribución de {selected_feature} por Clase")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, key="feature_distribution")
 
     # Boxplots for all features
     st.subheader("Boxplots Comparativos por Clase")
@@ -367,7 +367,7 @@ def main():
         ))
 
     fig.update_layout(title="Distribución de Features por Clase", yaxis_title="Valor", height=600)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, key="boxplot_comparison")
     
     # Compare models
     st.header("Comparación de Modelos")
@@ -466,7 +466,7 @@ def main():
                     range_color=[-1, 1]
                 )
                 fig.update_layout(title="Correlación entre Features")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key="correlation_heatmap")
             
             # ROC curves
             if result.roc_curves:
@@ -498,7 +498,7 @@ def main():
                     yaxis_title="True Positive Rate",
                     legend=dict(x=0.7, y=0.1)
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key="roc_curves")
             
             # Feature importance comparison
             st.subheader("Comparación de Feature Importance")
@@ -515,7 +515,7 @@ def main():
             fi_df = pd.DataFrame(feature_importance_data)
             fig = px.bar(fi_df, x="Importancia", y="Feature", color="Modelo", orientation="h", barmode="group")
             fig.update_layout(title="Feature Importance por Modelo", height=500)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="feature_importance_comparison")
 
             # Cross-validation details
             st.subheader("Detalles de Cross-Validation")
@@ -535,7 +535,7 @@ def main():
             fold_df = pd.DataFrame(fold_data)
             fig = px.line(fold_df, x="Fold", y="F1-Score", color="Modelo", markers=True)
             fig.update_layout(title="F1-Score por Fold", yaxis_title="F1-Score")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="fold_scores")
 
             # Variance analysis
             st.subheader("Análisis de Varianza entre Folds")
@@ -577,7 +577,7 @@ def main():
                                           color_continuous_scale='Blues',
                                           labels=dict(x="Predicho", y="Real", color="Count"))
                             fig.update_layout(title="Matriz de Confusión")
-                            st.plotly_chart(fig, use_container_width=True)
+                            st.plotly_chart(fig, use_container_width=True, key=f"confusion_matrix_{result_item.model_name.replace(' ', '_')}")
                         else:
                             st.info("Matriz de confusión no disponible")
 
@@ -646,7 +646,7 @@ def main():
                                  title="Distribución de Probabilidades de Alto Riesgo",
                                  labels={"x": "Probabilidad", "color": "Clase Real"})
                 fig.update_layout(barmode='overlay')
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key="probability_distribution")
 
                 # Threshold analysis
                 st.subheader("Análisis de Threshold")
@@ -668,7 +668,7 @@ def main():
                 threshold_df = pd.DataFrame(threshold_results)
                 fig = px.line(threshold_df, x="Threshold", y=["F1", "Precision", "Recall"],
                              markers=True, title="Métricas vs Threshold")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True, key="threshold_analysis")
             else:
                 st.info("El modelo seleccionado no soporta predict_proba")
 
