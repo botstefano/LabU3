@@ -1048,7 +1048,11 @@ def main():
             # Use out-of-fold predictions if available
             if result.out_of_fold_predictions and result.best_model in result.out_of_fold_predictions:
                 y_pred = result.out_of_fold_predictions[result.best_model]
-                st.success("✅ Usando predicciones out-of-fold del cross-validation")
+                if y_pred is not None:
+                    st.success("✅ Usando predicciones out-of-fold del cross-validation")
+                else:
+                    st.warning("⚠️ Predicciones out-of-fold son None, usando predicciones in-sample")
+                    y_pred = None
             else:
                 # Fallback to in-sample predictions
                 st.warning("⚠️ Predicciones out-of-fold no disponibles, usando predicciones in-sample")
@@ -1064,6 +1068,11 @@ def main():
                 pipeline = _build_pipeline(best_model_type)
                 pipeline.fit(X, y)
                 y_pred = pipeline.predict(X)
+
+            # Verify y_pred is not None before proceeding with error analysis
+            if y_pred is None:
+                st.error("❌ No se pudieron obtener predicciones para el análisis de errores")
+                return
 
             misclassified = []
             for i, (true_label, pred_label) in enumerate(zip(y, y_pred)):
