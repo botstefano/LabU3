@@ -266,7 +266,6 @@ def main():
 
         if uploaded_file:
             try:
-                import pandas as pd
                 from app.ml.features import ClientFeatures
 
                 df = pd.read_csv(uploaded_file)
