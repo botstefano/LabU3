@@ -130,11 +130,6 @@ def _build_pipeline(model_type: Literal["logistic", "random_forest", "svm", "gra
         raise ValueError(f"Unknown model type: {model_type}")
 
 
-def _build_pipeline() -> Pipeline:
-    """Default pipeline (logistic regression for backward compatibility)"""
-    return _build_pipeline("logistic")
-
-
 def _compute_eda(dataset: List[ClientFeatures]) -> EDAResult:
     X = np.array([features_to_vector(f) for f in dataset])
     labels = np.array([f.label for f in dataset])
