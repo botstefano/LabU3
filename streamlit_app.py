@@ -50,11 +50,16 @@ def load_data():
 
 def compute_features_from_db(clients_df, invoices_df, payments_df):
     """Compute features from database data"""
+    # Convert to SQLAlchemy-like objects
+    from app.models.client import Client
+    from app.models.invoice import Invoice
+    from app.models.payment import Payment
+
     dataset = []
-    
+
     for _, client in clients_df.iterrows():
         client_invoices = invoices_df[invoices_df['client_id'] == client['id']]
-        
+
         payments_by_invoice = {}
         for _, inv in client_invoices.iterrows():
             invoice_payments = payments_df[payments_df['invoice_id'] == inv['id']]
@@ -71,11 +76,6 @@ def compute_features_from_db(clients_df, invoices_df, payments_df):
                 )
                 payment_objs.append(payment_obj)
             payments_by_invoice[str(inv['id'])] = payment_objs
-        
-        # Convert to SQLAlchemy-like objects
-        from app.models.client import Client
-        from app.models.invoice import Invoice
-        from app.models.payment import Payment
         
         client_obj = Client(
             id=client['id'],
