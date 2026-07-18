@@ -126,14 +126,31 @@ def main():
 
     if data_source == "Archivo CSV (Primer entrenamiento)":
         uploaded_file = st.file_uploader("Cargar archivo CSV con dataset inicial", type=['csv'])
-        
+
         if uploaded_file:
             try:
-                from app.services.risk_service import RiskService
                 import pandas as pd
-                
-                csv_content = uploaded_file.read().decode('utf-8')
-                dataset = RiskService().parse_dataset_from_csv(csv_content)
+                from app.ml.features import ClientFeatures
+
+                df = pd.read_csv(uploaded_file)
+                dataset = []
+
+                for _, row in df.iterrows():
+                    try:
+                        features = ClientFeatures(
+                            pct_facturas_vencidas=float(row['pct_facturas_vencidas']),
+                            pct_pagos_tardios=float(row['pct_pagos_tardios']),
+                            dias_mora_promedio=float(row['dias_mora_promedio']),
+                            monto_promedio_factura=float(row['monto_promedio_factura']),
+                            cantidad_facturas=int(row['cantidad_facturas']),
+                            antiguedad_dias=int(row['antiguedad_dias']),
+                            label=int(row['label']) if 'label' in row and pd.notna(row['label']) else None
+                        )
+                        dataset.append(features)
+                    except Exception as e:
+                        st.warning(f"Omitiendo fila inválida: {e}")
+                        continue
+
                 st.success(f"Dataset cargado desde CSV: {len(dataset)} muestras")
             except Exception as e:
                 st.error(f"Error cargando CSV: {e}")
