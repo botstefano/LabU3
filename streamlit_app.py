@@ -131,18 +131,37 @@ def main():
     
     # Compare models
     st.header("Comparación de Modelos")
-    
-    if st.button("Comparar 5 Modelos", type="primary"):
-        with st.spinner("Comparando modelos con cross-validation 10-fold..."):
+
+    if st.button("Entrenar y Comparar 5 Modelos", type="primary"):
+        with st.spinner("Entrenando y comparando modelos con cross-validation..."):
             result = compare_models(dataset)
-            
+
+            # Save best model for production
+            from app.ml.risk_model import train_model_with_type
+            model_type_mapping = {
+                "Logistic Regression": "logistic",
+                "Random Forest": "random_forest",
+                "Support Vector Machine": "svm",
+                "Gradient Boosting": "gradient_boosting",
+                "Neural Network (MLP)": "mlp"
+            }
+            best_model_type = model_type_mapping.get(result.best_model, "logistic")
+
+            st.info(f"Guardando mejor modelo ({result.best_model}) para producción...")
+            train_result = train_model_with_type(dataset, best_model_type)
+
+            if train_result.entrenado:
+                st.success(f"✅ Modelo {result.best_model} guardado exitosamente para producción")
+            else:
+                st.error(f"❌ Error guardando modelo: {train_result.mensaje}")
+
             # Display best model
             st.subheader("Mejor Modelo")
             col1, col2, col3 = st.columns(3)
             col1.metric("Modelo", result.best_model)
             col2.metric("F1-Score", f"{result.best_f1:.3f}")
             col3.metric("Estado", "Excelente" if result.best_f1 > 0.8 else "Bueno" if result.best_f1 > 0.7 else "Moderado")
-            
+
             st.info(result.recommendation)
             
             # Comparison table
