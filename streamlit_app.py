@@ -29,8 +29,9 @@ st.set_page_config(
 # Database connection
 @st.cache_resource
 def get_db_engine():
-    from app.core.config import settings
-    return create_engine(settings.DATABASE_URL)
+    from app.core.config import get_settings
+    settings = get_settings()
+    return create_engine(settings.database_url)
 
 def load_data():
     """Load data from database"""
