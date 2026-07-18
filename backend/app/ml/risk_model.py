@@ -732,9 +732,9 @@ def compare_models(dataset: List[ClientFeatures]) -> CompareModelsResult:
                 }
 
     # Additional statistical tests
-    wilcoxon_tests = _compute_wilcoxon_tests(best_f1_scores, model_results, best_model, models_config) if best_f1_scores else {}
+    wilcoxon_tests = _compute_wilcoxon_tests(best_f1_scores, model_results, best_model, models_config) if best_f1_scores is not None and len(best_f1_scores) > 0 else {}
     
-    mcnemar_tests = _compute_mcnemar_tests(y, out_of_fold_predictions, best_model) if out_of_fold_predictions else {}
+    mcnemar_tests = _compute_mcnemar_tests(y, out_of_fold_predictions, best_model) if out_of_fold_predictions is not None else {}
     
     # Bootstrap confidence intervals for all models
     bootstrap_intervals = {}
