@@ -17,20 +17,20 @@ from sqlalchemy import create_engine, text
 try:
     from mistralai import Mistral
     MISTRAL_AVAILABLE = True
-    print("✅ Mistral AI disponible (API nueva)")
+    MISTRAL_API_VERSION = "nueva"
 except ImportError:
     try:
         from mistralai import MistralClient
         MISTRAL_AVAILABLE = True
-        print("✅ Mistral AI disponible (API antigua)")
+        MISTRAL_API_VERSION = "antigua"
     except ImportError:
         try:
             from mistralai.client import MistralClient
             MISTRAL_AVAILABLE = True
-            print("✅ Mistral AI disponible (API legacy)")
+            MISTRAL_API_VERSION = "legacy"
         except ImportError:
             MISTRAL_AVAILABLE = False
-            print("❌ Mistral AI no disponible - paquete no instalado")
+            MISTRAL_API_VERSION = "no instalada"
 from app.ml.risk_model import compare_models, _compute_correlation_matrix, _compute_roc_curves
 from app.ml.features import compute_client_features, features_to_vector, FEATURE_NAMES
 from app.repositories.client_repository import ClientRepository
@@ -775,6 +775,14 @@ def main():
         
         **Métricas de Evaluación:** F1-Score, Accuracy, Precision, Recall, ROC-AUC (con validación cruzada estratificada)
         """)
+
+        st.divider()
+
+        # Mistral AI status
+        if MISTRAL_AVAILABLE:
+            st.success(f"✅ Mistral AI disponible (API: {MISTRAL_API_VERSION})")
+        else:
+            st.warning(f"⚠️ Mistral AI no disponible (API: {MISTRAL_API_VERSION})")
 
         st.divider()
 
