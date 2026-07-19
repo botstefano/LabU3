@@ -138,7 +138,9 @@ def _build_pipeline(model_type: Literal["logistic", "random_forest", "svm", "gra
                 hidden_layer_sizes=(64, 32),
                 max_iter=1000,
                 random_state=42,
-                early_stopping=True
+                early_stopping=True,
+                validation_fraction=0.1,  # Reduce validation fraction for small datasets
+                n_iter_no_change=10  # Early stopping patience
             ))
         ])
     else:
@@ -677,11 +679,8 @@ def compare_models(dataset: List[ClientFeatures]) -> CompareModelsResult:
         "random_forest": "Random Forest",
         "svm": "Support Vector Machine",
         "gradient_boosting": "Gradient Boosting",
+        "mlp": "Neural Network (MLP)"
     }
-    
-    # Only include MLP if we have enough data (at least 50 samples per class)
-    if min_class_size >= 50:
-        models_config["mlp"] = "Neural Network (MLP)"
 
     # Compute ROC curves
     roc_curves = _compute_roc_curves(X, y, models_config)
