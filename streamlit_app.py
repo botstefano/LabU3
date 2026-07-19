@@ -15,14 +15,18 @@ import plotly.express as px
 from sklearn.metrics import f1_score, precision_score, recall_score
 from sqlalchemy import create_engine, text
 try:
-    from mistralai import MistralClient
+    from mistralai import Mistral
     MISTRAL_AVAILABLE = True
 except ImportError:
     try:
-        from mistralai.client import MistralClient
+        from mistralai import MistralClient
         MISTRAL_AVAILABLE = True
     except ImportError:
-        MISTRAL_AVAILABLE = False
+        try:
+            from mistralai.client import MistralClient
+            MISTRAL_AVAILABLE = True
+        except ImportError:
+            MISTRAL_AVAILABLE = False
 from app.ml.risk_model import compare_models, _compute_correlation_matrix, _compute_roc_curves
 from app.ml.features import compute_client_features, features_to_vector, FEATURE_NAMES
 from app.repositories.client_repository import ClientRepository
@@ -168,10 +172,13 @@ def get_mistral_explanation(result):
         return "API key de Mistral no configurada. Agrega MISTRAL_API_KEY al archivo .env"
     
     try:
-        client = MistralClient(api_key=api_key)
-        
-        # Prepare prompt with results summary
-        prompt = f"""
+        # Try new API (mistralai >= 1.0.0)
+        try:
+            from mistralai import Mistral
+            client = Mistral(api_key=api_key)
+            
+            # Prepare prompt with results summary
+            prompt = f"""
 Analiza los siguientes resultados de entrenamiento de modelos de Machine Learning para predicción de riesgo de morosidad:
 
 **Mejor Modelo:** {result.best_model}
@@ -180,30 +187,69 @@ Analiza los siguientes resultados de entrenamiento de modelos de Machine Learnin
 
 **Comparación de Modelos:**
 """
-        for r in result.results:
-            prompt += f"- {r.model_name}: F1={r.f1_mean:.3f}±{r.f1_std:.3f}, Accuracy={r.accuracy_mean:.3f}±{r.accuracy_std:.3f}\n"
-        
-        if result.statistical_tests:
-            prompt += "\n**Tests Estadísticos (t-test):**\n"
-            for test_name, test_data in result.statistical_tests.items():
-                prompt += f"- {test_name}: p-value={test_data['p_value']:.4f}, significativo={test_data['significant']}\n"
-        
-        prompt += """
+            for r in result.results:
+                prompt += f"- {r.model_name}: F1={r.f1_mean:.3f}±{r.f1_std:.3f}, Accuracy={r.accuracy_mean:.3f}±{r.accuracy_std:.3f}\n"
+            
+            if result.statistical_tests:
+                prompt += "\n**Tests Estadísticos (t-test):**\n"
+                for test_name, test_data in result.statistical_tests.items():
+                    prompt += f"- {test_name}: p-value={test_data['p_value']:.4f}, significativo={test_data['significant']}\n"
+            
+            prompt += """
 Explica en lenguaje claro y conciso (máximo 3 párrafos):
 1. ¿Qué significa el rendimiento del mejor modelo?
 2. ¿Cuál es la diferencia principal entre los modelos?
 3. ¿Qué recomendación práctica darías para implementar este sistema?
 """
-        
-        response = client.chat.complete(
-            model="mistral-small-latest",
-            messages=[
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=500
-        )
-        
-        return response.choices[0].message.content
+            
+            response = client.chat.complete(
+                model="mistral-small-latest",
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=500
+            )
+            
+            return response.choices[0].message.content
+        except ImportError:
+            # Fallback to old API (mistralai < 1.0.0)
+            from mistralai.client import MistralClient
+            client = MistralClient(api_key=api_key)
+            
+            # Prepare prompt with results summary
+            prompt = f"""
+Analiza los siguientes resultados de entrenamiento de modelos de Machine Learning para predicción de riesgo de morosidad:
+
+**Mejor Modelo:** {result.best_model}
+**F1-Score:** {result.best_f1:.3f}
+**Recomendación:** {result.recommendation}
+
+**Comparación de Modelos:**
+"""
+            for r in result.results:
+                prompt += f"- {r.model_name}: F1={r.f1_mean:.3f}±{r.f1_std:.3f}, Accuracy={r.accuracy_mean:.3f}±{r.accuracy_std:.3f}\n"
+            
+            if result.statistical_tests:
+                prompt += "\n**Tests Estadísticos (t-test):**\n"
+                for test_name, test_data in result.statistical_tests.items():
+                    prompt += f"- {test_name}: p-value={test_data['p_value']:.4f}, significativo={test_data['significant']}\n"
+            
+            prompt += """
+Explica en lenguaje claro y conciso (máximo 3 párrafos):
+1. ¿Qué significa el rendimiento del mejor modelo?
+2. ¿Cuál es la diferencia principal entre los modelos?
+3. ¿Qué recomendación práctica darías para implementar este sistema?
+"""
+            
+            response = client.chat.complete(
+                model="mistral-small-latest",
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=500
+            )
+            
+            return response.choices[0].message.content
         
     except Exception as e:
         return f"Error al obtener explicación de Mistral: {str(e)}"
