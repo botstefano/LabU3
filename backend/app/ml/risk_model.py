@@ -409,8 +409,14 @@ def _compute_wilcoxon_tests(best_f1_scores: List[float], model_results: Dict[str
         if model_name != best_model and model_type in model_results:
             other_f1_scores = model_results[model_type]['f1_scores']
             try:
+                # Debug logging
+                print(f"Wilcoxon {best_model} vs {model_name}:")
+                print(f"  Best F1 scores: {best_f1_scores}")
+                print(f"  Other F1 scores: {other_f1_scores}")
+                
                 # Check if scores are identical
                 if np.array_equal(best_f1_scores, other_f1_scores):
+                    print(f"  Scores are identical")
                     wilcoxon_tests[f"{best_model}_vs_{model_name}"] = {
                         "statistic": 0.0,
                         "p_value": 1.0,
@@ -419,12 +425,15 @@ def _compute_wilcoxon_tests(best_f1_scores: List[float], model_results: Dict[str
                     }
                 else:
                     stat, p_value = stats.wilcoxon(best_f1_scores, other_f1_scores)
+                    print(f"  Statistic: {stat}")
+                    print(f"  P-value: {p_value}")
                     wilcoxon_tests[f"{best_model}_vs_{model_name}"] = {
                         "statistic": float(stat),
                         "p_value": float(p_value),
                         "significant": p_value < 0.05
                     }
             except Exception as e:
+                print(f"  Error in Wilcoxon test: {str(e)}")
                 wilcoxon_tests[f"{best_model}_vs_{model_name}"] = {
                     "error": str(e),
                     "significant": False

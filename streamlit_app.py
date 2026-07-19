@@ -354,7 +354,7 @@ def generate_pdf_report(result, dataset_size, data_source, mistral_explanation=N
             f"{r.training_time:.2f}"
         ])
 
-    comparison_table = Table(comparison_data, colWidths=[2.5, 1, 1, 1, 1, 1, 0.8])
+    comparison_table = Table(comparison_data, colWidths=[3.0, 1.2, 1.2, 1.2, 1.2, 1.2, 0.8])
     comparison_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e88e5')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
@@ -520,15 +520,24 @@ def generate_pdf_report(result, dataset_size, data_source, mistral_explanation=N
         content.append(Paragraph("Estabilidad de Feature Importance", heading_style))
         stability_data = [["Feature", "Media", "Std", "CV", "Estabilidad"]]
         for feature, stability_data_item in result.feature_importance_stability.items():
-            stability_data.append([
-                feature,
-                f"{stability_data_item['mean']:.3f}",
-                f"{stability_data_item['std']:.3f}",
-                f"{stability_data_item['cv']:.3f}",
-                stability_data_item['stability']
-            ])
+            # Ensure all values are present and valid
+            mean_val = stability_data_item.get('mean', 0.0)
+            std_val = stability_data_item.get('std', 0.0)
+            cv_val = stability_data_item.get('cv', 0.0)
+            stability_val = stability_data_item.get('stability', 'Desconocida')
+            
+            # Only add if we have valid data
+            if not (np.isnan(mean_val) or np.isnan(std_val) or np.isnan(cv_val)):
+                stability_data.append([
+                    feature,
+                    f"{mean_val:.3f}" if not np.isnan(mean_val) else "N/A",
+                    f"{std_val:.3f}" if not np.isnan(std_val) else "N/A",
+                    f"{cv_val:.3f}" if not np.isnan(cv_val) else "N/A",
+                    stability_val
+                ])
 
-        stability_table = Table(stability_data, colWidths=[2.5, 1, 1, 1, 1.5])
+        if len(stability_data) > 1:
+            stability_table = Table(stability_data, colWidths=[2.5, 1, 1, 1, 1.5])
         stability_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e88e5')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
