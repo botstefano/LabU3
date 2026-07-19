@@ -17,16 +17,20 @@ from sqlalchemy import create_engine, text
 try:
     from mistralai import Mistral
     MISTRAL_AVAILABLE = True
+    print("✅ Mistral AI disponible (API nueva)")
 except ImportError:
     try:
         from mistralai import MistralClient
         MISTRAL_AVAILABLE = True
+        print("✅ Mistral AI disponible (API antigua)")
     except ImportError:
         try:
             from mistralai.client import MistralClient
             MISTRAL_AVAILABLE = True
+            print("✅ Mistral AI disponible (API legacy)")
         except ImportError:
             MISTRAL_AVAILABLE = False
+            print("❌ Mistral AI no disponible - paquete no instalado")
 from app.ml.risk_model import compare_models, _compute_correlation_matrix, _compute_roc_curves
 from app.ml.features import compute_client_features, features_to_vector, FEATURE_NAMES
 from app.repositories.client_repository import ClientRepository
