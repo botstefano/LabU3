@@ -166,8 +166,8 @@ def compute_features_from_db(clients_df, invoices_df, payments_df):
     
     return dataset
 
-def get_mistral_explanation(result):
-    """Get AI explanation of results using Mistral"""
+def get_mistral_explanation_best_model(result):
+    """Get AI explanation for the best model using Mistral"""
     if not MISTRAL_AVAILABLE:
         return "Mistral AI no está disponible. Instala mistralai: pip install mistralai"
     
@@ -181,29 +181,18 @@ def get_mistral_explanation(result):
             from mistralai import Mistral
             client = Mistral(api_key=api_key)
             
-            # Prepare prompt with results summary
+            # Prepare prompt for best model explanation
             prompt = f"""
-Analiza los siguientes resultados de entrenamiento de modelos de Machine Learning para predicción de riesgo de morosidad:
+Analiza el rendimiento del mejor modelo de Machine Learning para predicción de riesgo de morosidad:
 
 **Mejor Modelo:** {result.best_model}
 **F1-Score:** {result.best_f1:.3f}
 **Recomendación:** {result.recommendation}
 
-**Comparación de Modelos:**
-"""
-            for r in result.results:
-                prompt += f"- {r.model_name}: F1={r.f1_mean:.3f}±{r.f1_std:.3f}, Accuracy={r.accuracy_mean:.3f}±{r.accuracy_std:.3f}\n"
-            
-            if result.statistical_tests:
-                prompt += "\n**Tests Estadísticos (t-test):**\n"
-                for test_name, test_data in result.statistical_tests.items():
-                    prompt += f"- {test_name}: p-value={test_data['p_value']:.4f}, significativo={test_data['significant']}\n"
-            
-            prompt += """
 Explica en lenguaje claro y conciso (máximo 3 párrafos):
-1. ¿Qué significa el rendimiento del mejor modelo?
-2. ¿Cuál es la diferencia principal entre los modelos?
-3. ¿Qué recomendación práctica darías para implementar este sistema?
+1. ¿Qué significa el rendimiento del modelo en términos prácticos para el negocio?
+2. ¿Cuáles son las fortalezas principales de este modelo?
+3. ¿Qué riesgos o limitaciones se deben considerar al implementarlo?
 """
             
             response = client.chat.complete(
@@ -211,38 +200,27 @@ Explica en lenguaje claro y conciso (máximo 3 párrafos):
                 messages=[
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=500
+                max_tokens=400
             )
             
             return response.choices[0].message.content
+            
         except ImportError:
-            # Fallback to old API (mistralai < 1.0.0)
+            # Fallback to old API
             from mistralai.client import MistralClient
             client = MistralClient(api_key=api_key)
             
-            # Prepare prompt with results summary
             prompt = f"""
-Analiza los siguientes resultados de entrenamiento de modelos de Machine Learning para predicción de riesgo de morosidad:
+Analiza el rendimiento del mejor modelo de Machine Learning para predicción de riesgo de morosidad:
 
 **Mejor Modelo:** {result.best_model}
 **F1-Score:** {result.best_f1:.3f}
 **Recomendación:** {result.recommendation}
 
-**Comparación de Modelos:**
-"""
-            for r in result.results:
-                prompt += f"- {r.model_name}: F1={r.f1_mean:.3f}±{r.f1_std:.3f}, Accuracy={r.accuracy_mean:.3f}±{r.accuracy_std:.3f}\n"
-            
-            if result.statistical_tests:
-                prompt += "\n**Tests Estadísticos (t-test):**\n"
-                for test_name, test_data in result.statistical_tests.items():
-                    prompt += f"- {test_name}: p-value={test_data['p_value']:.4f}, significativo={test_data['significant']}\n"
-            
-            prompt += """
 Explica en lenguaje claro y conciso (máximo 3 párrafos):
-1. ¿Qué significa el rendimiento del mejor modelo?
-2. ¿Cuál es la diferencia principal entre los modelos?
-3. ¿Qué recomendación práctica darías para implementar este sistema?
+1. ¿Qué significa el rendimiento del modelo en términos prácticos para el negocio?
+2. ¿Cuáles son las fortalezas principales de este modelo?
+3. ¿Qué riesgos o limitaciones se deben considerar al implementarlo?
 """
             
             response = client.chat.complete(
@@ -250,7 +228,7 @@ Explica en lenguaje claro y conciso (máximo 3 párrafos):
                 messages=[
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=500
+                max_tokens=400
             )
             
             return response.choices[0].message.content
@@ -259,7 +237,172 @@ Explica en lenguaje claro y conciso (máximo 3 párrafos):
         return f"Error al obtener explicación de Mistral: {str(e)}"
 
 
-def generate_pdf_report(result, dataset_size, data_source, mistral_explanation=None):
+def get_mistral_explanation_comparison(result):
+    """Get AI explanation for model comparison using Mistral"""
+    if not MISTRAL_AVAILABLE:
+        return "Mistral AI no está disponible. Instala mistralai: pip install mistralai"
+    
+    api_key = os.getenv("MISTRAL_API_KEY")
+    if not api_key:
+        return "API key de Mistral no configurada. Agrega MISTRAL_API_KEY al archivo .env"
+    
+    try:
+        # Try new API (mistralai >= 1.0.0)
+        try:
+            from mistralai import Mistral
+            client = Mistral(api_key=api_key)
+            
+            # Prepare prompt for comparison explanation
+            prompt = f"""
+Analiza la comparación de modelos de Machine Learning para predicción de riesgo de morosidad:
+
+**Mejor Modelo:** {result.best_model} (F1={result.best_f1:.3f})
+
+**Comparación de Modelos:**
+"""
+            for r in result.results:
+                prompt += f"- {r.model_name}: F1={r.f1_mean:.3f}±{r.f1_std:.3f}, Accuracy={r.accuracy_mean:.3f}±{r.accuracy_std:.3f}, Tiempo={r.training_time:.2f}s\n"
+            
+            prompt += """
+Explica en lenguaje claro y conciso (máximo 3 párrafos):
+1. ¿Cuál es la diferencia principal entre los modelos en términos de rendimiento?
+2. ¿Qué modelo ofrece el mejor balance entre rendimiento y eficiencia?
+3. ¿Qué factores deberían considerarse al elegir entre los modelos principales?
+"""
+            
+            response = client.chat.complete(
+                model="mistral-small-latest",
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=400
+            )
+            
+            return response.choices[0].message.content
+            
+        except ImportError:
+            # Fallback to old API
+            from mistralai.client import MistralClient
+            client = MistralClient(api_key=api_key)
+            
+            prompt = f"""
+Analiza la comparación de modelos de Machine Learning para predicción de riesgo de morosidad:
+
+**Mejor Modelo:** {result.best_model} (F1={result.best_f1:.3f})
+
+**Comparación de Modelos:**
+"""
+            for r in result.results:
+                prompt += f"- {r.model_name}: F1={r.f1_mean:.3f}±{r.f1_std:.3f}, Accuracy={r.accuracy_mean:.3f}±{r.accuracy_std:.3f}, Tiempo={r.training_time:.2f}s\n"
+            
+            prompt += """
+Explica en lenguaje claro y conciso (máximo 3 párrafos):
+1. ¿Cuál es la diferencia principal entre los modelos en términos de rendimiento?
+2. ¿Qué modelo ofrece el mejor balance entre rendimiento y eficiencia?
+3. ¿Qué factores deberían considerarse al elegir entre los modelos principales?
+"""
+            
+            response = client.chat.complete(
+                model="mistral-small-latest",
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=400
+            )
+            
+            return response.choices[0].message.content
+        
+    except Exception as e:
+        return f"Error al obtener explicación de Mistral: {str(e)}"
+
+
+def get_mistral_explanation_statistical(result):
+    """Get AI explanation for statistical tests using Mistral"""
+    if not MISTRAL_AVAILABLE:
+        return "Mistral AI no está disponible. Instala mistralai: pip install mistralai"
+    
+    api_key = os.getenv("MISTRAL_API_KEY")
+    if not api_key:
+        return "API key de Mistral no configurada. Agrega MISTRAL_API_KEY al archivo .env"
+    
+    try:
+        # Try new API (mistralai >= 1.0.0)
+        try:
+            from mistralai import Mistral
+            client = Mistral(api_key=api_key)
+            
+            # Prepare prompt for statistical tests explanation
+            prompt = f"""
+Analiza los resultados de tests estadísticos para modelos de Machine Learning:
+
+**Mejor Modelo:** {result.best_model}
+
+**Tests Estadísticos (t-test):**
+"""
+            if result.statistical_tests:
+                for test_name, test_data in result.statistical_tests.items():
+                    significance = "Sí" if test_data.get('significant', False) else "No"
+                    prompt += f"- {test_name}: p-value={test_data.get('p_value', 0):.4f}, significativo={significance}\n"
+            
+            prompt += """
+Explica en lenguaje claro y conciso (máximo 2 párrafos):
+1. ¿Qué indican los tests estadísticos sobre las diferencias entre modelos?
+2. ¿Qué conclusión práctica se puede extraer de estos resultados?
+"""
+            
+            response = client.chat.complete(
+                model="mistral-small-latest",
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=300
+            )
+            
+            return response.choices[0].message.content
+            
+        except ImportError:
+            # Fallback to old API
+            from mistralai.client import MistralClient
+            client = MistralClient(api_key=api_key)
+            
+            prompt = f"""
+Analiza los resultados de tests estadísticos para modelos de Machine Learning:
+
+**Mejor Modelo:** {result.best_model}
+
+**Tests Estadísticos (t-test):**
+"""
+            if result.statistical_tests:
+                for test_name, test_data in result.statistical_tests.items():
+                    significance = "Sí" if test_data.get('significant', False) else "No"
+                    prompt += f"- {test_name}: p-value={test_data.get('p_value', 0):.4f}, significativo={significance}\n"
+            
+            prompt += """
+Explica en lenguaje claro y conciso (máximo 2 párrafos):
+1. ¿Qué indican los tests estadísticos sobre las diferencias entre modelos?
+2. ¿Qué conclusión práctica se puede extraer de estos resultados?
+"""
+            
+            response = client.chat.complete(
+                model="mistral-small-latest",
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=300
+            )
+            
+            return response.choices[0].message.content
+        
+    except Exception as e:
+        return f"Error al obtener explicación de Mistral: {str(e)}"
+
+
+def get_mistral_explanation(result):
+    """Get AI explanation of results using Mistral (legacy function for compatibility)"""
+    return get_mistral_explanation_best_model(result)
+
+
+def generate_pdf_report(result, dataset_size, data_source, mistral_best_model=None, mistral_comparison=None, mistral_statistical=None):
     """Generate PDF report with training results"""
     if not REPORTLAB_AVAILABLE:
         return None
@@ -332,10 +475,10 @@ def generate_pdf_report(result, dataset_size, data_source, mistral_explanation=N
     content.append(Paragraph(result.recommendation, normal_style))
     content.append(Spacer(1, 20))
 
-    # AI Explanation
-    if mistral_explanation:
-        content.append(Paragraph("Explicación con IA (Mistral)", heading_style))
-        content.append(Paragraph(mistral_explanation, normal_style))
+    # AI Explanation - Best Model
+    if mistral_best_model:
+        content.append(Paragraph("Explicación con IA - Mejor Modelo (Mistral)", heading_style))
+        content.append(Paragraph(mistral_best_model, normal_style))
         content.append(Spacer(1, 20))
 
     content.append(PageBreak())
@@ -368,6 +511,12 @@ def generate_pdf_report(result, dataset_size, data_source, mistral_explanation=N
     ]))
     content.append(comparison_table)
     content.append(Spacer(1, 20))
+
+    # AI Explanation - Comparison
+    if mistral_comparison:
+        content.append(Paragraph("Explicación con IA - Comparación de Modelos (Mistral)", heading_style))
+        content.append(Paragraph(mistral_comparison, normal_style))
+        content.append(Spacer(1, 20))
 
     # Statistical Tests (t-test)
     if result.statistical_tests:
@@ -428,6 +577,12 @@ def generate_pdf_report(result, dataset_size, data_source, mistral_explanation=N
             ]))
             content.append(wilcoxon_table)
             content.append(Spacer(1, 20))
+
+    # AI Explanation - Statistical Tests
+    if mistral_statistical:
+        content.append(Paragraph("Explicación con IA - Tests Estadísticos (Mistral)", heading_style))
+        content.append(Paragraph(mistral_statistical, normal_style))
+        content.append(Spacer(1, 20))
 
     # McNemar Tests
     if result.mcnemar_tests and not ("error" in result.mcnemar_tests and isinstance(result.mcnemar_tests["error"], str)):
@@ -1215,11 +1370,20 @@ def main():
             else:
                 if st.button("🧠 Generar explicación con IA", type="secondary", width='stretch'):
                     with st.spinner("Generando explicación con Mistral AI..."):
-                        explanation = get_mistral_explanation(result)
-                        st.session_state.mistral_explanation = explanation
+                        explanation_best = get_mistral_explanation_best_model(result)
+                        explanation_comparison = get_mistral_explanation_comparison(result)
+                        explanation_statistical = get_mistral_explanation_statistical(result)
+                        st.session_state.mistral_best_model = explanation_best
+                        st.session_state.mistral_comparison = explanation_comparison
+                        st.session_state.mistral_statistical = explanation_statistical
                 
-                if 'mistral_explanation' in st.session_state:
-                    st.markdown(st.session_state.mistral_explanation)
+                if 'mistral_best_model' in st.session_state:
+                    st.markdown("#### 🎯 Mejor Modelo")
+                    st.markdown(st.session_state.mistral_best_model)
+                    st.markdown("#### 📊 Comparación de Modelos")
+                    st.markdown(st.session_state.mistral_comparison)
+                    st.markdown("#### 📈 Tests Estadísticos")
+                    st.markdown(st.session_state.mistral_statistical)
                     st.caption("Explicación generada por Mistral AI")
 
             st.divider()
@@ -1227,8 +1391,10 @@ def main():
             col_export, _ = st.columns([1, 2])
             with col_export:
                 if REPORTLAB_AVAILABLE:
-                    mistral_explanation = st.session_state.get('mistral_explanation', None)
-                    pdf_buffer = generate_pdf_report(result, dataset_size, data_source, mistral_explanation)
+                    mistral_best = st.session_state.get('mistral_best_model', None)
+                    mistral_comp = st.session_state.get('mistral_comparison', None)
+                    mistral_stat = st.session_state.get('mistral_statistical', None)
+                    pdf_buffer = generate_pdf_report(result, dataset_size, data_source, mistral_best, mistral_comp, mistral_stat)
                     if pdf_buffer:
                         st.download_button(
                             label="📄 Descargar reporte PDF",
