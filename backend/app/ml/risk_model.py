@@ -409,12 +409,21 @@ def _compute_wilcoxon_tests(best_f1_scores: List[float], model_results: Dict[str
         if model_name != best_model and model_type in model_results:
             other_f1_scores = model_results[model_type]['f1_scores']
             try:
-                stat, p_value = stats.wilcoxon(best_f1_scores, other_f1_scores)
-                wilcoxon_tests[f"{best_model}_vs_{model_name}"] = {
-                    "statistic": float(stat),
-                    "p_value": float(p_value),
-                    "significant": p_value < 0.05
-                }
+                # Check if scores are identical
+                if np.array_equal(best_f1_scores, other_f1_scores):
+                    wilcoxon_tests[f"{best_model}_vs_{model_name}"] = {
+                        "statistic": 0.0,
+                        "p_value": 1.0,
+                        "significant": False,
+                        "note": "Identical scores"
+                    }
+                else:
+                    stat, p_value = stats.wilcoxon(best_f1_scores, other_f1_scores)
+                    wilcoxon_tests[f"{best_model}_vs_{model_name}"] = {
+                        "statistic": float(stat),
+                        "p_value": float(p_value),
+                        "significant": p_value < 0.05
+                    }
             except Exception as e:
                 wilcoxon_tests[f"{best_model}_vs_{model_name}"] = {
                     "error": str(e),
@@ -575,9 +584,18 @@ def _compute_feature_importance_stability(results: List[ModelComparisonResult]) 
                 values.append(result.feature_importance[feature])
         
         if values and len(values) > 1:
-            mean_val = np.mean(values)
-            std_val = np.std(values)
-            cv = std_val / mean_val if mean_val > 0 else 0
+            values_array = np.array(values)
+            mean_val = np.mean(values_array)
+            std_val = np.std(values_array)
+            
+            # Normalize values to 0-1 range before computing CV
+            if np.max(values_array) > 0:
+                normalized_values = values_array / np.max(values_array)
+                mean_normalized = np.mean(normalized_values)
+                std_normalized = np.std(normalized_values)
+                cv = std_normalized / mean_normalized if mean_normalized > 0 else 0
+            else:
+                cv = 0
             
             feature_importance_stability[feature] = {
                 "mean": float(mean_val),
@@ -733,12 +751,21 @@ def compare_models(dataset: List[ClientFeatures]) -> CompareModelsResult:
             
             if other_model_type and best_f1_scores is not None:
                 other_f1_scores = model_results[other_model_type]['f1_scores']
-                t_stat, p_value = stats.ttest_rel(best_f1_scores, other_f1_scores)
-                statistical_tests[f"{best_model}_vs_{result.model_name}"] = {
-                    "t_statistic": float(t_stat),
-                    "p_value": float(p_value),
-                    "significant": p_value < 0.05
-                }
+                # Check if scores are identical
+                if np.array_equal(best_f1_scores, other_f1_scores):
+                    statistical_tests[f"{best_model}_vs_{result.model_name}"] = {
+                        "t_statistic": 0.0,
+                        "p_value": 1.0,
+                        "significant": False,
+                        "note": "Identical scores"
+                    }
+                else:
+                    t_stat, p_value = stats.ttest_rel(best_f1_scores, other_f1_scores)
+                    statistical_tests[f"{best_model}_vs_{result.model_name}"] = {
+                        "t_statistic": float(t_stat) if not np.isnan(t_stat) else 0.0,
+                        "p_value": float(p_value) if not np.isnan(p_value) else 1.0,
+                        "significant": p_value < 0.05
+                    }
 
     # Additional statistical tests
     wilcoxon_tests = _compute_wilcoxon_tests(best_f1_scores, model_results, best_model, models_config) if best_f1_scores is not None and len(best_f1_scores) > 0 else {}
