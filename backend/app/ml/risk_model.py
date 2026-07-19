@@ -410,13 +410,13 @@ def _compute_wilcoxon_tests(best_f1_scores: List[float], model_results: Dict[str
             other_f1_scores = model_results[model_type]['f1_scores']
             try:
                 # Debug logging
-                print(f"Wilcoxon {best_model} vs {model_name}:")
-                print(f"  Best F1 scores: {best_f1_scores}")
-                print(f"  Other F1 scores: {other_f1_scores}")
+                print(f"Wilcoxon {best_model} vs {model_name}:", flush=True)
+                print(f"  Best F1 scores: {best_f1_scores}", flush=True)
+                print(f"  Other F1 scores: {other_f1_scores}", flush=True)
                 
                 # Check if scores are identical
                 if np.array_equal(best_f1_scores, other_f1_scores):
-                    print(f"  Scores are identical")
+                    print(f"  Scores are identical", flush=True)
                     wilcoxon_tests[f"{best_model}_vs_{model_name}"] = {
                         "statistic": 0.0,
                         "p_value": 1.0,
@@ -425,15 +425,15 @@ def _compute_wilcoxon_tests(best_f1_scores: List[float], model_results: Dict[str
                     }
                 else:
                     stat, p_value = stats.wilcoxon(best_f1_scores, other_f1_scores)
-                    print(f"  Statistic: {stat}")
-                    print(f"  P-value: {p_value}")
+                    print(f"  Statistic: {stat}", flush=True)
+                    print(f"  P-value: {p_value}", flush=True)
                     wilcoxon_tests[f"{best_model}_vs_{model_name}"] = {
                         "statistic": float(stat),
                         "p_value": float(p_value),
                         "significant": p_value < 0.05
                     }
             except Exception as e:
-                print(f"  Error in Wilcoxon test: {str(e)}")
+                print(f"  Error in Wilcoxon test: {str(e)}", flush=True)
                 wilcoxon_tests[f"{best_model}_vs_{model_name}"] = {
                     "error": str(e),
                     "significant": False
@@ -460,14 +460,14 @@ def _compute_mcnemar_tests(y_true: np.ndarray, predictions: Dict[str, np.ndarray
         if model_name != best_model:
             try:
                 # Debug logging - check predictions
-                print(f"McNemar {best_model} vs {model_name}:")
-                print(f"  Best pred shape: {best_pred.shape}")
-                print(f"  Other pred shape: {pred.shape}")
-                print(f"  Best pred unique values: {np.unique(best_pred)}")
-                print(f"  Other pred unique values: {np.unique(pred)}")
-                print(f"  Predictions identical: {np.array_equal(best_pred, pred)}")
-                print(f"  Best pred sample: {best_pred[:10]}")
-                print(f"  Other pred sample: {pred[:10]}")
+                print(f"McNemar {best_model} vs {model_name}:", flush=True)
+                print(f"  Best pred shape: {best_pred.shape}", flush=True)
+                print(f"  Other pred shape: {pred.shape}", flush=True)
+                print(f"  Best pred unique values: {np.unique(best_pred)}", flush=True)
+                print(f"  Other pred unique values: {np.unique(pred)}", flush=True)
+                print(f"  Predictions identical: {np.array_equal(best_pred, pred)}", flush=True)
+                print(f"  Best pred sample: {best_pred[:10]}", flush=True)
+                print(f"  Other pred sample: {pred[:10]}", flush=True)
                 
                 # Create contingency table
                 # Both correct, Best correct/Other wrong, Best wrong/Other correct, Both wrong
@@ -478,20 +478,20 @@ def _compute_mcnemar_tests(y_true: np.ndarray, predictions: Dict[str, np.ndarray
                 
                 contingency = [[both_correct, best_correct], [other_correct, both_wrong]]
                 
-                print(f"  Contingency table: {contingency}")
-                print(f"  Total disagreements: {best_correct + other_correct}")
+                print(f"  Contingency table: {contingency}", flush=True)
+                print(f"  Total disagreements: {best_correct + other_correct}", flush=True)
                 
                 # Use exact test for small samples or when contingency table has zeros
                 total_disagreements = best_correct + other_correct
                 if total_disagreements < 25:
                     result = mcnemar(contingency, exact=True)
-                    print(f"  Using exact test")
+                    print(f"  Using exact test", flush=True)
                 else:
                     result = mcnemar(contingency, exact=False, correction=True)
-                    print(f"  Using chi-squared test with correction")
+                    print(f"  Using chi-squared test with correction", flush=True)
                 
-                print(f"  Statistic: {result.statistic if hasattr(result, 'statistic') else 'N/A'}")
-                print(f"  P-value: {result.pvalue}")
+                print(f"  Statistic: {result.statistic if hasattr(result, 'statistic') else 'N/A'}", flush=True)
+                print(f"  P-value: {result.pvalue}", flush=True)
                 
                 mcnemar_tests[f"{best_model}_vs_{model_name}"] = {
                     "statistic": float(result.statistic) if hasattr(result, 'statistic') else 0.0,
@@ -683,7 +683,7 @@ def compare_models(dataset: List[ClientFeatures]) -> CompareModelsResult:
     out_of_fold_predictions = {}  # Store out-of-fold predictions for error analysis
 
     for model_type, model_name in models_config.items():
-        print(f"Evaluating {model_name}...")
+        print(f"Evaluating {model_name}...", flush=True)
         
         pipeline = _build_pipeline(model_type)
         
@@ -708,9 +708,9 @@ def compare_models(dataset: List[ClientFeatures]) -> CompareModelsResult:
         try:
             oof_predictions = cross_val_predict(pipeline, X, y, cv=cv, method='predict')
             out_of_fold_predictions[model_name] = oof_predictions
-            print(f"Out-of-fold predictions for {model_name}: shape={oof_predictions.shape}")
+            print(f"Out-of-fold predictions for {model_name}: shape={oof_predictions.shape}", flush=True)
         except Exception as e:
-            print(f"Error getting out-of-fold predictions for {model_name}: {str(e)}")
+            print(f"Error getting out-of-fold predictions for {model_name}: {str(e)}", flush=True)
             out_of_fold_predictions[model_name] = None
         
         # Compute feature importance
