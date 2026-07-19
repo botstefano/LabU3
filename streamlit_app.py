@@ -1,6 +1,8 @@
 import streamlit as st
 import sys
 import os
+import joblib
+import requests
 from pathlib import Path
 from datetime import datetime
 from io import BytesIO
@@ -64,13 +66,34 @@ def get_db_engine():
         settings = get_settings()
         engine = create_engine(settings.database_url)
         # Test connection
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
         return engine
     except Exception as e:
-        st.error(f"❌ Error conectando a la base de datos: {e}")
-        st.error("Verifica que DATABASE_URL esté configurado correctamente en .env")
-        raise
+        return None
+
+# Backend API configuration
+BACKEND_API_URL = os.getenv("BACKEND_API_URL", "http://localhost:8000")
+
+def upload_model_to_backend(model_path):
+    """Upload trained model to backend API"""
+    try:
+        # Load the model
+        model = joblib.load(model_path)
+        
+        # Save to bytes buffer
+        model_buffer = BytesIO()
+        joblib.dump(model, model_buffer)
+        model_buffer.seek(0)
+        
+        # Upload to backend
+        files = {'file': ('risk_model.joblib', model_buffer, 'application/octet-stream')}
+        response = requests.post(f"{BACKEND_API_URL}/api/risk/upload-model", files=files)
+        
+        if response.status_code == 200:
+            return True, "Model uploaded successfully"
+        else:
+            return False, f"Upload failed: {response.text}"
+    except Exception as e:
+        return False, f"Upload error: {str(e)}"
 
 def load_data():
     """Load data from database"""
@@ -1431,6 +1454,18 @@ def main():
                     train_model_with_type_incremental(dataset, best_model_type, use_saved=True)
                 else:
                     train_model_with_type_incremental(dataset, best_model_type, use_saved=False)
+
+                # Upload model to backend for production use
+                status_text.text("📤 Subiendo modelo al backend...")
+                progress_bar.progress(98, text="Subiendo modelo al backend...")
+                
+                from app.ml.risk_model import MODEL_PATH
+                upload_success, upload_message = upload_model_to_backend(MODEL_PATH)
+                
+                if upload_success:
+                    st.info(f"✅ {upload_message}")
+                else:
+                    st.warning(f"⚠️ {upload_message}")
 
                 progress_bar.progress(100, text="✅ Entrenamiento completado!")
                 status_text.text("✅ Entrenamiento completado exitosamente!")

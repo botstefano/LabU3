@@ -59,3 +59,5 @@ services:
         generateValue: true
       - key: MISTRAL_API_KEY
         sync: false
+      - key: BACKEND_API_URL
+        value: https://facturacion-backend.onrender.com

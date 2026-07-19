@@ -1,6 +1,8 @@
 
 from typing import List
 from uuid import UUID
+import joblib
+import io
 
 from fastapi import APIRouter, Depends, UploadFile, File
 from sqlalchemy.orm import Session
@@ -10,6 +12,7 @@ from app.models.user import User, UserRole
 from app.routers.deps import get_current_user, require_roles
 from app.schemas.risk import ClientRiskResponse, TrainRiskResponse, TrainingStatus, CompareModelsResponse, TrainModelWithTypeRequest
 from app.services.risk_service import RiskService
+from pathlib import Path
 
 router = APIRouter(prefix="/api/risk", tags=["Riesgo de Morosidad (IA)"])
 
@@ -99,4 +102,27 @@ def get_credit_limit_suggestion(
     current_user: User = Depends(get_current_user),
 ):
     return RiskService(db).sugerir_limite_credito(str(client_id))
+
+
+@router.post("/upload-model")
+def upload_trained_model(
+    file: UploadFile = File(...),
+    _: User = Depends(require_roles(UserRole.ADMINISTRADOR, UserRole.CONTADOR)),
+):
+    """Receive trained model from Streamlit and save it for backend use"""
+    try:
+        # Read the model file
+        model_data = file.file.read()
+        
+        # Save to backend model path
+        model_path = Path(__file__).parent.parent / "ml" / "model_artifacts" / "risk_model.joblib"
+        model_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Load and save the model
+        model = joblib.load(io.BytesIO(model_data))
+        joblib.dump(model, model_path)
+        
+        return {"message": "Model uploaded successfully", "path": str(model_path)}
+    except Exception as e:
+        return {"error": str(e)}, 400
 
