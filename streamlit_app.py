@@ -379,6 +379,37 @@ def generate_pdf_report(result, dataset_size, data_source, mistral_explanation=N
             content.append(wilcoxon_table)
             content.append(Spacer(1, 20))
 
+    # McNemar Tests
+    if result.mcnemar_tests and not ("error" in result.mcnemar_tests and isinstance(result.mcnemar_tests["error"], str)):
+        content.append(Paragraph("McNemar's Test (clasificadores binarios)", heading_style))
+        mcnemar_data = [["Comparación", "statistic", "p-value", "Significativo"]]
+        for test_name, test_data in result.mcnemar_tests.items():
+            if isinstance(test_data, dict) and 'statistic' in test_data:
+                stat = test_data.get('statistic', 0.0)
+                p_val = test_data.get('p_value', 1.0)
+                mcnemar_data.append([
+                    test_name,
+                    f"{stat:.3f}" if not np.isnan(stat) else "N/A",
+                    f"{p_val:.4f}" if not np.isnan(p_val) else "N/A",
+                    "Sí" if test_data.get('significant', False) else "No"
+                ])
+
+        if len(mcnemar_data) > 1:
+            mcnemar_table = Table(mcnemar_data, colWidths=[3, 1.5, 1.5, 1.5])
+            mcnemar_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e88e5')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 9),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
+            ]))
+            content.append(mcnemar_table)
+            content.append(Spacer(1, 20))
+
     # Bootstrap Confidence Intervals
     if result.bootstrap_intervals:
         content.append(Paragraph("Bootstrap Confidence Intervals (95%)", heading_style))
