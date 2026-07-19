@@ -15,10 +15,14 @@ import plotly.express as px
 from sklearn.metrics import f1_score, precision_score, recall_score
 from sqlalchemy import create_engine, text
 try:
-    from mistralai.client import MistralClient
+    from mistralai import MistralClient
     MISTRAL_AVAILABLE = True
 except ImportError:
-    MISTRAL_AVAILABLE = False
+    try:
+        from mistralai.client import MistralClient
+        MISTRAL_AVAILABLE = True
+    except ImportError:
+        MISTRAL_AVAILABLE = False
 from app.ml.risk_model import compare_models, _compute_correlation_matrix, _compute_roc_curves
 from app.ml.features import compute_client_features, features_to_vector, FEATURE_NAMES
 from app.repositories.client_repository import ClientRepository
