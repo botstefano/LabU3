@@ -456,8 +456,22 @@ def _compute_mcnemar_tests(y_true: np.ndarray, predictions: Dict[str, np.ndarray
     
     best_pred = predictions[best_model]
     
+    # Validate that best_pred is not None
+    if best_pred is None:
+        print(f"McNemar test skipped: best_model predictions are None", flush=True)
+        return mcnemar_tests
+    
     for model_name, pred in predictions.items():
         if model_name != best_model:
+            # Validate that pred is not None
+            if pred is None:
+                print(f"McNemar {best_model} vs {model_name}: skipped - predictions are None", flush=True)
+                mcnemar_tests[f"{best_model}_vs_{model_name}"] = {
+                    "error": "Predictions are None",
+                    "significant": False
+                }
+                continue
+                
             try:
                 # Debug logging - check predictions
                 print(f"McNemar {best_model} vs {model_name}:", flush=True)
