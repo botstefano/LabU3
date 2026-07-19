@@ -209,13 +209,13 @@ Explica en lenguaje claro y conciso (máximo 3 párrafos):
         return f"Error al obtener explicación de Mistral: {str(e)}"
 
 
-def generate_pdf_report(result, dataset_size, data_source):
+def generate_pdf_report(result, dataset_size, data_source, mistral_explanation=None):
     """Generate PDF report with training results"""
     if not REPORTLAB_AVAILABLE:
         return None
 
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    doc = SimpleDocTemplate(buffer, pagesize=letter, leftMargin=72, rightMargin=72, topMargin=72, bottomMargin=72)
     styles = getSampleStyleSheet()
 
     # Custom styles
@@ -233,7 +233,15 @@ def generate_pdf_report(result, dataset_size, data_source):
         parent=styles['Heading2'],
         fontSize=14,
         textColor=colors.HexColor('#333333'),
-        spaceAfter=12
+        spaceAfter=15,
+        spaceBefore=20
+    )
+
+    normal_style = ParagraphStyle(
+        'CustomNormal',
+        parent=styles['Normal'],
+        fontSize=10,
+        spaceAfter=10
     )
 
     content = []
@@ -243,10 +251,10 @@ def generate_pdf_report(result, dataset_size, data_source):
     content.append(Spacer(1, 12))
 
     # Date and source
-    content.append(Paragraph(f"<b>Fecha:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", styles['Normal']))
-    content.append(Paragraph(f"<b>Fuente de datos:</b> {data_source}", styles['Normal']))
-    content.append(Paragraph(f"<b>Tamaño del dataset:</b> {dataset_size} muestras", styles['Normal']))
-    content.append(Spacer(1, 12))
+    content.append(Paragraph(f"<b>Fecha:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", normal_style))
+    content.append(Paragraph(f"<b>Fuente de datos:</b> {data_source}", normal_style))
+    content.append(Paragraph(f"<b>Tamaño del dataset:</b> {dataset_size} muestras", normal_style))
+    content.append(Spacer(1, 20))
 
     # Best Model
     content.append(Paragraph("Mejor Modelo", heading_style))
@@ -267,12 +275,20 @@ def generate_pdf_report(result, dataset_size, data_source):
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
     ]))
     content.append(best_model_table)
-    content.append(Spacer(1, 12))
+    content.append(Spacer(1, 20))
 
     # Recommendation
     content.append(Paragraph("Recomendación", heading_style))
-    content.append(Paragraph(result.recommendation, styles['Normal']))
-    content.append(Spacer(1, 12))
+    content.append(Paragraph(result.recommendation, normal_style))
+    content.append(Spacer(1, 20))
+
+    # AI Explanation
+    if mistral_explanation:
+        content.append(Paragraph("Explicación con IA (Mistral)", heading_style))
+        content.append(Paragraph(mistral_explanation, normal_style))
+        content.append(Spacer(1, 20))
+
+    content.append(PageBreak())
 
     # Comparison Table
     content.append(Paragraph("Tabla Comparativa", heading_style))
@@ -301,18 +317,20 @@ def generate_pdf_report(result, dataset_size, data_source):
         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
     ]))
     content.append(comparison_table)
-    content.append(Spacer(1, 12))
+    content.append(Spacer(1, 20))
 
     # Statistical Tests (t-test)
     if result.statistical_tests:
         content.append(Paragraph("Tests Estadísticos (t-test pareado)", heading_style))
         tests_data = [["Comparación", "t-statistic", "p-value", "Significativo"]]
         for test_name, test_data in result.statistical_tests.items():
+            t_stat = test_data.get('t_statistic', 0.0)
+            p_val = test_data.get('p_value', 1.0)
             tests_data.append([
                 test_name,
-                f"{test_data['t_statistic']:.3f}",
-                f"{test_data['p_value']:.4f}",
-                "Sí" if test_data['significant'] else "No"
+                f"{t_stat:.3f}" if not np.isnan(t_stat) else "N/A",
+                f"{p_val:.4f}" if not np.isnan(p_val) else "N/A",
+                "Sí" if test_data.get('significant', False) else "No"
             ])
 
         tests_table = Table(tests_data, colWidths=[3, 1.5, 1.5, 1.5])
@@ -328,7 +346,7 @@ def generate_pdf_report(result, dataset_size, data_source):
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
         ]))
         content.append(tests_table)
-        content.append(Spacer(1, 12))
+        content.append(Spacer(1, 20))
 
     # Wilcoxon Tests
     if result.wilcoxon_tests:
@@ -336,11 +354,13 @@ def generate_pdf_report(result, dataset_size, data_source):
         wilcoxon_data = [["Comparación", "statistic", "p-value", "Significativo"]]
         for test_name, test_data in result.wilcoxon_tests.items():
             if isinstance(test_data, dict) and 'statistic' in test_data:
+                stat = test_data.get('statistic', 0.0)
+                p_val = test_data.get('p_value', 1.0)
                 wilcoxon_data.append([
                     test_name,
-                    f"{test_data['statistic']:.3f}",
-                    f"{test_data['p_value']:.4f}",
-                    "Sí" if test_data['significant'] else "No"
+                    f"{stat:.3f}" if not np.isnan(stat) else "N/A",
+                    f"{p_val:.4f}" if not np.isnan(p_val) else "N/A",
+                    "Sí" if test_data.get('significant', False) else "No"
                 ])
 
         if len(wilcoxon_data) > 1:
@@ -357,7 +377,7 @@ def generate_pdf_report(result, dataset_size, data_source):
                 ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
             ]))
             content.append(wilcoxon_table)
-            content.append(Spacer(1, 12))
+            content.append(Spacer(1, 20))
 
     # Bootstrap Confidence Intervals
     if result.bootstrap_intervals:
@@ -384,7 +404,7 @@ def generate_pdf_report(result, dataset_size, data_source):
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
         ]))
         content.append(bootstrap_table)
-        content.append(Spacer(1, 12))
+        content.append(Spacer(1, 20))
 
     # Variance Analysis
     if result.variance_analysis:
@@ -412,7 +432,7 @@ def generate_pdf_report(result, dataset_size, data_source):
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
         ]))
         content.append(variance_table)
-        content.append(Spacer(1, 12))
+        content.append(Spacer(1, 20))
 
     # Feature Importance Stability
     if result.feature_importance_stability:
@@ -440,7 +460,9 @@ def generate_pdf_report(result, dataset_size, data_source):
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
         ]))
         content.append(stability_table)
-        content.append(Spacer(1, 12))
+        content.append(Spacer(1, 20))
+
+    content.append(PageBreak())
 
     # Methodology Section
     content.append(Paragraph("Metodología", heading_style))
@@ -452,8 +474,8 @@ def generate_pdf_report(result, dataset_size, data_source):
     <b>Curvas de Aprendizaje:</b> Rendimiento vs tamaño del dataset.
     <b>Calibración:</b> Curvas de calibración de probabilidades predichas.
     """
-    content.append(Paragraph(methodology_text, styles['Normal']))
-    content.append(Spacer(1, 12))
+    content.append(Paragraph(methodology_text, normal_style))
+    content.append(Spacer(1, 20))
 
     # Footer
     content.append(Paragraph(f"Generado por ML Risk Scoring - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", 
@@ -1097,7 +1119,8 @@ def main():
             col_export, _ = st.columns([1, 2])
             with col_export:
                 if REPORTLAB_AVAILABLE:
-                    pdf_buffer = generate_pdf_report(result, dataset_size, data_source)
+                    mistral_explanation = st.session_state.get('mistral_explanation', None)
+                    pdf_buffer = generate_pdf_report(result, dataset_size, data_source, mistral_explanation)
                     if pdf_buffer:
                         st.download_button(
                             label="📄 Descargar reporte PDF",
