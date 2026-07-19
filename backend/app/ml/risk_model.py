@@ -459,12 +459,22 @@ def _compute_mcnemar_tests(y_true: np.ndarray, predictions: Dict[str, np.ndarray
                 
                 contingency = [[both_correct, best_correct], [other_correct, both_wrong]]
                 
+                # Debug logging
+                print(f"McNemar {best_model} vs {model_name}:")
+                print(f"  Contingency table: {contingency}")
+                print(f"  Total disagreements: {best_correct + other_correct}")
+                
                 # Use exact test for small samples or when contingency table has zeros
                 total_disagreements = best_correct + other_correct
                 if total_disagreements < 25:
                     result = mcnemar(contingency, exact=True)
+                    print(f"  Using exact test")
                 else:
                     result = mcnemar(contingency, exact=False, correction=True)
+                    print(f"  Using chi-squared test with correction")
+                
+                print(f"  Statistic: {result.statistic if hasattr(result, 'statistic') else 'N/A'}")
+                print(f"  P-value: {result.pvalue}")
                 
                 mcnemar_tests[f"{best_model}_vs_{model_name}"] = {
                     "statistic": float(result.statistic) if hasattr(result, 'statistic') else 0.0,
@@ -473,6 +483,7 @@ def _compute_mcnemar_tests(y_true: np.ndarray, predictions: Dict[str, np.ndarray
                     "contingency_table": contingency
                 }
             except Exception as e:
+                print(f"  Error in McNemar test: {str(e)}")
                 mcnemar_tests[f"{best_model}_vs_{model_name}"] = {
                     "error": str(e),
                     "significant": False
