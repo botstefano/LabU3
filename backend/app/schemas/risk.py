@@ -60,6 +60,7 @@ class TrainingStatus(BaseModel):
 
 
 class ModelComparisonResult(BaseModel):
+    model_config = {'protected_namespaces': ()}
     model_name: str
     f1_mean: float
     f1_std: float
@@ -87,5 +88,6 @@ class CompareModelsResponse(BaseModel):
 
 
 class TrainModelWithTypeRequest(BaseModel):
+    model_config = {'protected_namespaces': ()}
     model_type: str  # "logistic", "random_forest", "svm", "gradient_boosting", "mlp"
 
