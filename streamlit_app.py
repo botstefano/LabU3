@@ -790,7 +790,7 @@ def main():
             """, unsafe_allow_html=True)
 
         st.divider()
-        if st.button("Comenzar →", type="primary", use_container_width=True):
+        if st.button("Comenzar →", type="primary", width='stretch'):
             st.session_state.page = "📁 Cargar Datos"
             st.rerun()
 
@@ -865,7 +865,7 @@ def main():
 
         if dataset:
             st.success("🎯 Datos cargados exitosamente. Puedes proceder al análisis del dataset.")
-            if st.button("Ir a Análisis de Dataset →", type="primary", use_container_width=True):
+            if st.button("Ir a Análisis de Dataset →", type="primary", width='stretch'):
                 st.session_state.page = "📈 Análisis Dataset"
                 st.rerun()
 
@@ -874,7 +874,7 @@ def main():
 
         if 'dataset' not in st.session_state or st.session_state.dataset is None:
             st.warning("⚠️ Primero debes cargar los datos en la sección 'Cargar Datos'.")
-            if st.button("Ir a Cargar Datos", use_container_width=True):
+            if st.button("Ir a Cargar Datos", width='stretch'):
                 st.session_state.page = "📁 Cargar Datos"
                 st.rerun()
             return
@@ -934,11 +934,11 @@ def main():
             class_counts = dataset_df['label'].value_counts()
             fig = px.pie(values=class_counts.values, names=['Bajo Riesgo', 'Alto Riesgo'] if 0 in class_counts.index else ['Alto Riesgo'], hole=0.3)
             fig.update_layout(title="Balance de Clases", showlegend=True)
-            st.plotly_chart(fig, use_container_width=True, key="class_distribution")
+            st.plotly_chart(fig, width='stretch', key="class_distribution")
             
         with col2:
             st.container(border=True).markdown("### 📊 Estadísticas Descriptivas")
-            st.dataframe(dataset_df.describe(), use_container_width=True)
+            st.dataframe(dataset_df.describe(), width='stretch')
 
         st.divider()
 
@@ -960,12 +960,12 @@ def main():
                              barmode='overlay', nbins=30,
                              title=f"Distribución de {selected_feature} por Clase")
             fig.update_layout(showlegend=True)
-            st.plotly_chart(fig, use_container_width=True, key=f"feature_dist_{selected_feature}")
+            st.plotly_chart(fig, width='stretch', key=f"feature_dist_{selected_feature}")
         
         with col2:
             st.container(border=True).markdown("### 📈 Estadísticas por Clase")
             stats_by_class = dataset_df.groupby('label')[selected_feature].describe()
-            st.dataframe(stats_by_class, use_container_width=True)
+            st.dataframe(stats_by_class, width='stretch')
             
             # Correlation with target
             correlation = dataset_df[[selected_feature, 'label']].corr().iloc[0, 1]
@@ -981,10 +981,10 @@ def main():
                          x='variable', y='value', color='label',
                          title="Distribución de Features por Clase de Riesgo")
         fig_melt.update_layout(xaxis_title="Feature", yaxis_title="Valor")
-        st.plotly_chart(fig_melt, use_container_width=True, key="boxplot_comparison")
+        st.plotly_chart(fig_melt, width='stretch', key="boxplot_comparison")
 
         st.divider()
-        if st.button("Ir a Entrenamiento de Modelos →", type="primary", use_container_width=True):
+        if st.button("Ir a Entrenamiento de Modelos →", type="primary", width='stretch'):
             st.session_state.page = "🤖 Entrenamiento"
             st.rerun()
 
@@ -993,7 +993,7 @@ def main():
 
         if 'dataset' not in st.session_state or st.session_state.dataset is None:
             st.warning("⚠️ Primero debes cargar los datos en la sección 'Cargar Datos'.")
-            if st.button("Ir a Cargar Datos", use_container_width=True):
+            if st.button("Ir a Cargar Datos", width='stretch'):
                 st.session_state.page = "📁 Cargar Datos"
                 st.rerun()
             return
@@ -1019,13 +1019,23 @@ def main():
         st.divider()
 
         # Training action
-        if st.button("🚀 Entrenar y Comparar 5 Modelos", type="primary", use_container_width=True):
+        if st.button("🚀 Entrenar y Comparar 5 Modelos", type="primary", width='stretch'):
             progress_bar = st.progress(0, text="Iniciando entrenamiento...")
             status_text = st.empty()
             
             try:
                 status_text.text("🔄 Preparando dataset...")
                 progress_bar.progress(10, text="Preparando dataset...")
+                
+                # Validate dataset has at least 2 classes
+                labels = [f.label for f in dataset]
+                unique_labels = set(labels)
+                if len(unique_labels) < 2:
+                    progress_bar.empty()
+                    status_text.empty()
+                    st.error(f"❌ El dataset debe contener al menos 2 clases para el entrenamiento. Clases encontradas: {unique_labels}")
+                    st.warning("⚠️ Por favor carga un dataset con clientes de alto riesgo (label=1) y bajo riesgo (label=0).")
+                    return
                 
                 status_text.text("🤖 Entrenando Logistic Regression...")
                 progress_bar.progress(20, text="Entrenando Logistic Regression...")
@@ -1081,7 +1091,7 @@ def main():
 
         if 'result' in st.session_state:
             st.success("✅ Modelo entrenado. Ve a la sección 'Resultados' para ver el análisis completo.")
-            if st.button("Ver Resultados →", type="secondary", use_container_width=True):
+            if st.button("Ver Resultados →", type="secondary", width='stretch'):
                 st.session_state.page = "📋 Resultados"
                 st.rerun()
 
@@ -1090,7 +1100,7 @@ def main():
 
         if 'result' not in st.session_state:
             st.warning("⚠️ Primero debes entrenar los modelos en la sección 'Entrenamiento'.")
-            if st.button("Ir a Entrenamiento", use_container_width=True):
+            if st.button("Ir a Entrenamiento", width='stretch'):
                 st.session_state.page = "🤖 Entrenamiento"
                 st.rerun()
             return
@@ -1136,7 +1146,7 @@ def main():
             elif not os.getenv("MISTRAL_API_KEY"):
                 st.warning("⚠️ API key de Mistral no configurada. Agrega MISTRAL_API_KEY al archivo .env")
             else:
-                if st.button("🧠 Generar explicación con IA", type="secondary", use_container_width=True):
+                if st.button("🧠 Generar explicación con IA", type="secondary", width='stretch'):
                     with st.spinner("Generando explicación con Mistral AI..."):
                         explanation = get_mistral_explanation(result)
                         st.session_state.mistral_explanation = explanation
@@ -1159,7 +1169,7 @@ def main():
                             file_name=f"reporte_entrenamiento_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
                             mime="application/pdf",
                             type="primary",
-                            use_container_width=True
+                            width='stretch'
                         )
                 else:
                     st.warning("Para descargar PDF, instala reportlab: pip install reportlab")
@@ -1180,7 +1190,7 @@ def main():
                 }
                 for r in result.results
             ])
-            st.dataframe(results_df, use_container_width=True)
+            st.dataframe(results_df, width='stretch')
 
             st.divider()
 
@@ -1196,7 +1206,7 @@ def main():
                     }
                     for test, data in result.statistical_tests.items()
                 ])
-                st.dataframe(tests_df, use_container_width=True)
+                st.dataframe(tests_df, width='stretch')
 
             # Wilcoxon tests
             if result.wilcoxon_tests:
@@ -1210,7 +1220,7 @@ def main():
                     }
                     for test, data in result.wilcoxon_tests.items()
                 ])
-                st.dataframe(wilcoxon_df, use_container_width=True)
+                st.dataframe(wilcoxon_df, width='stretch')
 
             # McNemar tests
             if result.mcnemar_tests:
@@ -1237,7 +1247,7 @@ def main():
                                 "Significativo": "N/A"
                             })
                     mcnemar_df = pd.DataFrame(mcnemar_data)
-                    st.dataframe(mcnemar_df, use_container_width=True)
+                    st.dataframe(mcnemar_df, width='stretch')
 
             # Bootstrap intervals
             if result.bootstrap_intervals:
@@ -1251,7 +1261,7 @@ def main():
                     }
                     for model, data in result.bootstrap_intervals.items()
                 ])
-                st.dataframe(bootstrap_df, use_container_width=True)
+                st.dataframe(bootstrap_df, width='stretch')
 
             # Variance analysis
             if result.variance_analysis:
@@ -1266,7 +1276,7 @@ def main():
                     }
                     for model, data in result.variance_analysis.items()
                 ])
-                st.dataframe(variance_df, use_container_width=True)
+                st.dataframe(variance_df, width='stretch')
 
             st.divider()
 
@@ -1302,7 +1312,7 @@ def main():
                         yaxis_title="True Positive Rate",
                         legend=dict(x=0.7, y=0.1)
                     )
-                    st.plotly_chart(fig, use_container_width=True, key="roc_curves")
+                    st.plotly_chart(fig, width='stretch', key="roc_curves")
             
             with col2:
                 st.container(border=True).markdown("### 🔗 Matriz de Correlación")
@@ -1316,7 +1326,7 @@ def main():
                         range_color=[-1, 1]
                     )
                     fig.update_layout(title="Correlación entre Features")
-                    st.plotly_chart(fig, use_container_width=True, key="correlation_heatmap")
+                    st.plotly_chart(fig, width='stretch', key="correlation_heatmap")
 
         with tab3:
             # Feature analysis view
@@ -1334,7 +1344,7 @@ def main():
             fi_df = pd.DataFrame(feature_importance_data)
             fig = px.bar(fi_df, x="Importancia", y="Feature", color="Modelo", orientation="h", barmode="group")
             fig.update_layout(title="Feature Importance por Modelo", height=500)
-            st.plotly_chart(fig, use_container_width=True, key="feature_importance_comparison")
+            st.plotly_chart(fig, width='stretch', key="feature_importance_comparison")
 
             st.divider()
 
@@ -1358,7 +1368,7 @@ def main():
                 fold_df = pd.DataFrame(fold_data)
                 fig = px.line(fold_df, x="Fold", y="F1-Score", color="Modelo", markers=True)
                 fig.update_layout(title="F1-Score por Fold", yaxis_title="F1-Score")
-                st.plotly_chart(fig, use_container_width=True, key="fold_scores")
+                st.plotly_chart(fig, width='stretch', key="fold_scores")
             
             with col2:
                 st.markdown("#### Análisis de Varianza")
@@ -1371,7 +1381,7 @@ def main():
                     })
 
                 variance_df = pd.DataFrame(variance_data)
-                st.dataframe(variance_df, use_container_width=True)
+                st.dataframe(variance_df, width='stretch')
 
             st.divider()
 
@@ -1403,7 +1413,7 @@ def main():
                             yaxis_title="F1-Score",
                             height=400
                         )
-                        st.plotly_chart(fig, use_container_width=True, key=f"learning_curve_{model_name.replace(' ', '_')}")
+                        st.plotly_chart(fig, width='stretch', key=f"learning_curve_{model_name.replace(' ', '_')}")
 
             st.divider()
 
@@ -1435,7 +1445,7 @@ def main():
                             yaxis_title="Fracción de positivos",
                             height=400
                         )
-                        st.plotly_chart(fig, use_container_width=True, key=f"calibration_curve_{model_name.replace(' ', '_')}")
+                        st.plotly_chart(fig, width='stretch', key=f"calibration_curve_{model_name.replace(' ', '_')}")
 
             st.divider()
 
@@ -1455,7 +1465,7 @@ def main():
                     })
                 
                 stability_df = pd.DataFrame(stability_data)
-                st.dataframe(stability_df, use_container_width=True)
+                st.dataframe(stability_df, width='stretch')
 
         with tab4:
             # Detailed analysis view
@@ -1484,7 +1494,7 @@ def main():
                                           color_continuous_scale='Blues',
                                           labels=dict(x="Predicho", y="Real", color="Count"))
                             fig.update_layout(title="Matriz de Confusión")
-                            st.plotly_chart(fig, use_container_width=True, key=f"confusion_matrix_{result_item.model_name.replace(' ', '_')}")
+                            st.plotly_chart(fig, width='stretch', key=f"confusion_matrix_{result_item.model_name.replace(' ', '_')}")
                         else:
                             st.info("Matriz de confusión no disponible")
 
@@ -1500,7 +1510,7 @@ def main():
                             f"{result_item.training_time:.2f}s"
                         ]
                     }
-                    st.dataframe(pd.DataFrame(perf_data), use_container_width=True)
+                    st.dataframe(pd.DataFrame(perf_data), width='stretch')
 
             st.divider()
 
@@ -1554,7 +1564,7 @@ def main():
 
             if misclassified:
                 st.markdown(f"#### Casos Mal Clasificados ({len(misclassified)} de {len(dataset)})")
-                st.dataframe(pd.DataFrame(misclassified), use_container_width=True)
+                st.dataframe(pd.DataFrame(misclassified), width='stretch')
             else:
                 st.success("✅ No hay errores de clasificación en el dataset")
 
@@ -1573,12 +1583,12 @@ def main():
                     "ROC-AUC": f"{result_item.roc_auc_mean:.3f} ± {result_item.roc_auc_std:.3f}",
                     "Tiempo (s)": f"{result_item.training_time:.2f}"
                 })
-            st.dataframe(pd.DataFrame(perf_summary_data), use_container_width=True)
+            st.dataframe(pd.DataFrame(perf_summary_data), width='stretch')
 
 
         st.divider()
 
-        if st.button("🔄 Reentrenar Modelos", type="secondary", use_container_width=True):
+        if st.button("🔄 Reentrenar Modelos", type="secondary", width='stretch'):
             del st.session_state.result
             st.rerun()
 
