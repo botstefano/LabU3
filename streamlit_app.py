@@ -408,46 +408,145 @@ def generate_pdf_report(result, dataset_size, data_source, mistral_best_model=No
         return None
 
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, leftMargin=72, rightMargin=72, topMargin=72, bottomMargin=72)
+    doc = SimpleDocTemplate(
+        buffer, 
+        pagesize=letter, 
+        leftMargin=72, 
+        rightMargin=72, 
+        topMargin=72, 
+        bottomMargin=72,
+        rightMargin=72,
+        leftMargin=72,
+        topMargin=72,
+        bottomMargin=72
+    )
     styles = getSampleStyleSheet()
 
-    # Custom styles
+    # Custom styles - University/Professional design
     title_style = ParagraphStyle(
         'CustomTitle',
         parent=styles['Heading1'],
-        fontSize=18,
-        textColor=colors.HexColor('#1e88e5'),
+        fontSize=16,
+        textColor=colors.HexColor('#1a237e'),  # Dark blue
         alignment=TA_CENTER,
-        spaceAfter=30
+        spaceAfter=30,
+        fontName='Helvetica-Bold',
+        leading=20
+    )
+
+    subtitle_style = ParagraphStyle(
+        'CustomSubtitle',
+        parent=styles['Heading2'],
+        fontSize=12,
+        textColor=colors.HexColor('#424242'),  # Dark gray
+        alignment=TA_CENTER,
+        spaceAfter=25,
+        fontName='Helvetica',
+        leading=16
     )
 
     heading_style = ParagraphStyle(
         'CustomHeading',
         parent=styles['Heading2'],
-        fontSize=14,
-        textColor=colors.HexColor('#333333'),
-        spaceAfter=15,
-        spaceBefore=20
+        fontSize=12,
+        textColor=colors.HexColor('#1565c0'),  # Medium blue
+        spaceAfter=12,
+        spaceBefore=20,
+        fontName='Helvetica-Bold',
+        leading=16,
+        borderPadding=5,
+        borderWidth=1,
+        borderColor=colors.HexColor('#e0e0e0')
+    )
+
+    subheading_style = ParagraphStyle(
+        'CustomSubheading',
+        parent=styles['Heading3'],
+        fontSize=11,
+        textColor=colors.HexColor('#424242'),
+        spaceAfter=10,
+        spaceBefore=15,
+        fontName='Helvetica-Bold',
+        leading=14
     )
 
     normal_style = ParagraphStyle(
         'CustomNormal',
         parent=styles['Normal'],
         fontSize=10,
-        spaceAfter=10
+        textColor=colors.HexColor('#616161'),
+        spaceAfter=10,
+        leading=14,
+        fontName='Helvetica'
+    )
+
+    table_header_style = ParagraphStyle(
+        'TableHeader',
+        parent=styles['Normal'],
+        fontSize=9,
+        textColor=colors.white,
+        fontName='Helvetica-Bold',
+        leading=12
+    )
+
+    table_cell_style = ParagraphStyle(
+        'TableCell',
+        parent=styles['Normal'],
+        fontSize=9,
+        textColor=colors.HexColor('#424242'),
+        leading=12,
+        fontName='Helvetica'
     )
 
     content = []
 
-    # Title
-    content.append(Paragraph("Reporte de Entrenamiento de Modelos ML", title_style))
-    content.append(Spacer(1, 12))
-
-    # Date and source
-    content.append(Paragraph(f"<b>Fecha:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", normal_style))
-    content.append(Paragraph(f"<b>Fuente de datos:</b> {data_source}", normal_style))
-    content.append(Paragraph(f"<b>Tamaño del dataset:</b> {dataset_size} muestras", normal_style))
+    # University header
+    header_data = [
+        [Paragraph("<b>UNIVERSIDAD</b>", ParagraphStyle('Header', fontSize=14, textColor=colors.HexColor('#1a237e'), fontName='Helvetica-Bold'))],
+        [Paragraph("Laboratorio de Machine Learning", ParagraphStyle('Header', fontSize=10, textColor=colors.HexColor('#757575'), fontName='Helvetica'))],
+        [Paragraph("Sistema de Predicción de Riesgo de Morosidad", ParagraphStyle('Header', fontSize=9, textColor=colors.HexColor('#9e9e9e'), fontName='Helvetica'))]
+    ]
+    header_table = Table(header_data, colWidths=[400])
+    header_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    content.append(header_table)
     content.append(Spacer(1, 20))
+
+    # Decorative line
+    content.append(Paragraph("<hr/>", ParagraphStyle('Line', fontSize=6, textColor=colors.HexColor('#e0e0e0'))))
+    content.append(Spacer(1, 15))
+
+    # Title
+    content.append(Paragraph("REPORTE DE ENTRENAMIENTO DE MODELOS", title_style))
+    content.append(Paragraph("Análisis Comparativo de Algoritmos de Machine Learning", subtitle_style))
+    content.append(Spacer(1, 20))
+
+    # Metadata box
+    metadata_data = [
+        ["Fecha de Generación", datetime.now().strftime('%Y-%m-%d %H:%M:%S')],
+        ["Fuente de Datos", data_source],
+        ["Tamaño del Dataset", f"{dataset_size} muestras"],
+        ["Número de Modelos Evaluados", str(len(result.results))]
+    ]
+    metadata_table = Table(metadata_data, colWidths=[2.5, 3])
+    metadata_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f5f5f5')),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#424242')),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e0e0e0')),
+        ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.white, colors.HexColor('#fafafa')]),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    content.append(metadata_table)
+    content.append(Spacer(1, 25))
 
     # Best Model
     content.append(Paragraph("Mejor Modelo", heading_style))
@@ -458,26 +557,32 @@ def generate_pdf_report(result, dataset_size, data_source, mistral_best_model=No
     ]
     best_model_table = Table(best_model_data, colWidths=[3, 2])
     best_model_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#e3f2fd')),
-        ('TEXTCOLOR', (0, 0), (0, -1), colors.black),
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#e8eaf6')),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#1a237e')),
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (1, 0), (1, -1), colors.HexColor('#f5f5f5')),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (0, -1), 10),
+        ('BACKGROUND', (1, 0), (1, -1), colors.HexColor('#fafafa')),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE', (1, 0), (1, -1), 10),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e0e0e0')),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
     ]))
     content.append(best_model_table)
     content.append(Spacer(1, 20))
 
     # Recommendation
-    content.append(Paragraph("Recomendación", heading_style))
+    content.append(Paragraph("Recomendación", subheading_style))
     content.append(Paragraph(result.recommendation, normal_style))
     content.append(Spacer(1, 20))
 
     # AI Explanation - Best Model
     if mistral_best_model:
-        content.append(Paragraph("Explicación con IA - Mejor Modelo (Mistral)", heading_style))
+        content.append(Paragraph("Análisis con Inteligencia Artificial - Mejor Modelo", subheading_style))
         content.append(Paragraph(mistral_best_model, normal_style))
         content.append(Spacer(1, 20))
 
@@ -499,28 +604,36 @@ def generate_pdf_report(result, dataset_size, data_source, mistral_best_model=No
 
     comparison_table = Table(comparison_data, colWidths=[3.0, 1.2, 1.2, 1.2, 1.2, 1.2, 0.8])
     comparison_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e88e5')),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1565c0')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, 0), 9),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('TOPPADDING', (0, 0), (-1, 0), 8),
         ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e0e0e0')),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#fafafa')]),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 1), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
     ]))
     content.append(comparison_table)
     content.append(Spacer(1, 20))
 
     # AI Explanation - Comparison
     if mistral_comparison:
-        content.append(Paragraph("Explicación con IA - Comparación de Modelos (Mistral)", heading_style))
+        content.append(Paragraph("Análisis con Inteligencia Artificial - Comparación de Modelos", subheading_style))
         content.append(Paragraph(mistral_comparison, normal_style))
         content.append(Spacer(1, 20))
 
     # Statistical Tests (t-test)
     if result.statistical_tests:
-        content.append(Paragraph("Tests Estadísticos (t-test pareado)", heading_style))
+        content.append(Paragraph("Tests Estadísticos (t-test pareado)", subheading_style))
         tests_data = [["Comparación", "t-statistic", "p-value", "Significativo"]]
         for test_name, test_data in result.statistical_tests.items():
             t_stat = test_data.get('t_statistic', 0.0)
@@ -534,22 +647,30 @@ def generate_pdf_report(result, dataset_size, data_source, mistral_best_model=No
 
         tests_table = Table(tests_data, colWidths=[3, 1.5, 1.5, 1.5])
         tests_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e88e5')),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1565c0')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 9),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+            ('TOPPADDING', (0, 0), (-1, 0), 8),
             ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e0e0e0')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#fafafa')]),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 1), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
         ]))
         content.append(tests_table)
         content.append(Spacer(1, 20))
 
     # Wilcoxon Tests
     if result.wilcoxon_tests:
-        content.append(Paragraph("Wilcoxon Signed-Rank Test (no paramétrico)", heading_style))
+        content.append(Paragraph("Wilcoxon Signed-Rank Test (no paramétrico)", subheading_style))
         wilcoxon_data = [["Comparación", "statistic", "p-value", "Significativo"]]
         for test_name, test_data in result.wilcoxon_tests.items():
             if isinstance(test_data, dict) and 'statistic' in test_data:
@@ -565,22 +686,30 @@ def generate_pdf_report(result, dataset_size, data_source, mistral_best_model=No
         if len(wilcoxon_data) > 1:
             wilcoxon_table = Table(wilcoxon_data, colWidths=[3, 1.5, 1.5, 1.5])
             wilcoxon_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e88e5')),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1565c0')),
                 ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                 ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                 ('FONTSIZE', (0, 0), (-1, 0), 9),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                ('TOPPADDING', (0, 0), (-1, 0), 8),
                 ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-                ('GRID', (0, 0), (-1, -1), 1, colors.black),
-                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 9),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e0e0e0')),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#fafafa')]),
+                ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+                ('TOPPADDING', (0, 1), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
             ]))
             content.append(wilcoxon_table)
             content.append(Spacer(1, 20))
 
     # AI Explanation - Statistical Tests
     if mistral_statistical:
-        content.append(Paragraph("Explicación con IA - Tests Estadísticos (Mistral)", heading_style))
+        content.append(Paragraph("Análisis con Inteligencia Artificial - Tests Estadísticos", subheading_style))
         content.append(Paragraph(mistral_statistical, normal_style))
         content.append(Spacer(1, 20))
 
@@ -617,7 +746,7 @@ def generate_pdf_report(result, dataset_size, data_source, mistral_best_model=No
 
     # Bootstrap Confidence Intervals
     if result.bootstrap_intervals:
-        content.append(Paragraph("Bootstrap Confidence Intervals (95%)", heading_style))
+        content.append(Paragraph("Bootstrap Confidence Intervals (95%)", subheading_style))
         bootstrap_data = [["Modelo", "F1 Lower", "F1 Upper", "Intervalo"]]
         for model_name, interval_data in result.bootstrap_intervals.items():
             bootstrap_data.append([
@@ -629,15 +758,23 @@ def generate_pdf_report(result, dataset_size, data_source, mistral_best_model=No
 
         bootstrap_table = Table(bootstrap_data, colWidths=[2.5, 1.5, 1.5, 2])
         bootstrap_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e88e5')),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1565c0')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 9),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+            ('TOPPADDING', (0, 0), (-1, 0), 8),
             ('BACKGROUND', (0, 1), (-1, -1), colors.white),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e0e0e0')),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#fafafa')]),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 1), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
         ]))
         content.append(bootstrap_table)
         content.append(Spacer(1, 20))
