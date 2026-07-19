@@ -414,10 +414,6 @@ def generate_pdf_report(result, dataset_size, data_source, mistral_best_model=No
         leftMargin=72, 
         rightMargin=72, 
         topMargin=72, 
-        bottomMargin=72,
-        rightMargin=72,
-        leftMargin=72,
-        topMargin=72,
         bottomMargin=72
     )
     styles = getSampleStyleSheet()
