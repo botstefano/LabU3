@@ -677,8 +677,11 @@ def compare_models(dataset: List[ClientFeatures]) -> CompareModelsResult:
         "random_forest": "Random Forest",
         "svm": "Support Vector Machine",
         "gradient_boosting": "Gradient Boosting",
-        "mlp": "Neural Network (MLP)"
     }
+    
+    # Only include MLP if we have enough data (at least 50 samples per class)
+    if min_class_size >= 50:
+        models_config["mlp"] = "Neural Network (MLP)"
 
     # Compute ROC curves
     roc_curves = _compute_roc_curves(X, y, models_config)
