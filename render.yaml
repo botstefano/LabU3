@@ -48,7 +48,7 @@ services:
     name: facturacion-ml
     runtime: python
     plan: free
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install --no-cache-dir -r requirements.txt
     startCommand: streamlit run streamlit_app.py --server.port=$PORT
     envVars:
       - key: DATABASE_URL
