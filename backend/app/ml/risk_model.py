@@ -450,9 +450,15 @@ def _compute_mcnemar_tests(y_true: np.ndarray, predictions: Dict[str, np.ndarray
                 
                 contingency = [[both_correct, best_correct], [other_correct, both_wrong]]
                 
-                result = mcnemar(contingency, exact=False, correction=True)
+                # Use exact test for small samples or when contingency table has zeros
+                total_disagreements = best_correct + other_correct
+                if total_disagreements < 25:
+                    result = mcnemar(contingency, exact=True)
+                else:
+                    result = mcnemar(contingency, exact=False, correction=True)
+                
                 mcnemar_tests[f"{best_model}_vs_{model_name}"] = {
-                    "statistic": float(result.statistic),
+                    "statistic": float(result.statistic) if hasattr(result, 'statistic') else 0.0,
                     "p_value": float(result.pvalue),
                     "significant": result.pvalue < 0.05,
                     "contingency_table": contingency
