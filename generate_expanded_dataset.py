@@ -94,7 +94,7 @@ def main():
     analysis = analyze_distribution(original_df)
     
     # Generate synthetic samples
-    target_size = 700
+    target_size = 750
     n_synthetic = target_size - len(original_df)
     print(f"Generating {n_synthetic} synthetic samples...")
     

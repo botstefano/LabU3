@@ -8,3 +8,15 @@ dist/
 .DS_Store
 venv/
 .venv/
+
+# Archivos temporales
+*.crdownload
+*.tmp
+
+# Reportes generados
+reporte_entrenamiento_*.pdf
+mcnemar*.csv
+resultado.csv
+
+# Documentos personales
+*.pdf
