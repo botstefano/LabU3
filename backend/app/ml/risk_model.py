@@ -708,7 +708,9 @@ def compare_models(dataset: List[ClientFeatures]) -> CompareModelsResult:
         try:
             oof_predictions = cross_val_predict(pipeline, X, y, cv=cv, method='predict')
             out_of_fold_predictions[model_name] = oof_predictions
-        except:
+            print(f"Out-of-fold predictions for {model_name}: shape={oof_predictions.shape}")
+        except Exception as e:
+            print(f"Error getting out-of-fold predictions for {model_name}: {str(e)}")
             out_of_fold_predictions[model_name] = None
         
         # Compute feature importance
