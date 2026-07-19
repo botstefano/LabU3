@@ -116,12 +116,12 @@ def _build_pipeline(model_type: Literal["logistic", "random_forest", "svm", "gra
             ))
         ])
     elif model_type == "svm":
+        from sklearn.calibration import CalibratedClassifierCV
         return Pipeline([
             ("scaler", StandardScaler()),
-            ("classifier", SVC(
-                class_weight="balanced",
-                probability=True,
-                random_state=42
+            ("classifier", CalibratedClassifierCV(
+                SVC(class_weight="balanced", random_state=42),
+                ensemble=False
             ))
         ])
     elif model_type == "gradient_boosting":
