@@ -459,6 +459,16 @@ def _compute_mcnemar_tests(y_true: np.ndarray, predictions: Dict[str, np.ndarray
     for model_name, pred in predictions.items():
         if model_name != best_model:
             try:
+                # Debug logging - check predictions
+                print(f"McNemar {best_model} vs {model_name}:")
+                print(f"  Best pred shape: {best_pred.shape}")
+                print(f"  Other pred shape: {pred.shape}")
+                print(f"  Best pred unique values: {np.unique(best_pred)}")
+                print(f"  Other pred unique values: {np.unique(pred)}")
+                print(f"  Predictions identical: {np.array_equal(best_pred, pred)}")
+                print(f"  Best pred sample: {best_pred[:10]}")
+                print(f"  Other pred sample: {pred[:10]}")
+                
                 # Create contingency table
                 # Both correct, Best correct/Other wrong, Best wrong/Other correct, Both wrong
                 both_correct = np.sum((best_pred == y_true) & (pred == y_true))
@@ -468,8 +478,6 @@ def _compute_mcnemar_tests(y_true: np.ndarray, predictions: Dict[str, np.ndarray
                 
                 contingency = [[both_correct, best_correct], [other_correct, both_wrong]]
                 
-                # Debug logging
-                print(f"McNemar {best_model} vs {model_name}:")
                 print(f"  Contingency table: {contingency}")
                 print(f"  Total disagreements: {best_correct + other_correct}")
                 
