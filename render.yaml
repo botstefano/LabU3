@@ -57,3 +57,5 @@ services:
         value: production
       - key: JWT_SECRET_KEY
         generateValue: true
+      - key: MISTRAL_API_KEY
+        sync: false
