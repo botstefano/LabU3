@@ -76,26 +76,55 @@ BACKEND_API_URL = os.getenv("BACKEND_API_URL", "http://localhost:8000")
 def upload_model_to_backend(model_path):
     """Upload trained model to backend API"""
     try:
+        print(f"[UPLOAD] Iniciando subida del modelo desde {model_path}")
+        print(f"[UPLOAD] URL del backend: {BACKEND_API_URL}/api/risk/upload-model")
+        
+        # Check if backend is accessible
+        try:
+            health_response = requests.get(f"{BACKEND_API_URL}/", timeout=5)
+            print(f"[UPLOAD] Backend health check: status={health_response.status_code}")
+        except requests.exceptions.RequestException as e:
+            print(f"[UPLOAD] ERROR: Backend no accesible: {str(e)}")
+            return False, f"Backend no accesible: {str(e)}. Verifica que el servicio backend esté corriendo."
+        
         # Load the model
         model = joblib.load(model_path)
+        print(f"[UPLOAD] Modelo cargado exitosamente")
         
         # Save to bytes buffer
         model_buffer = BytesIO()
         joblib.dump(model, model_buffer)
         model_buffer.seek(0)
+        model_size = model_buffer.getbuffer().nbytes
+        print(f"[UPLOAD] Modelo serializado en buffer, tamaño: {model_size} bytes ({model_size / 1024 / 1024:.2f} MB)")
+        
+        if model_size > 50 * 1024 * 1024:  # 50 MB
+            print(f"[UPLOAD] WARNING: Modelo muy grande ({model_size / 1024 / 1024:.2f} MB)")
         
         # Upload to backend
         files = {'file': ('risk_model.joblib', model_buffer, 'application/octet-stream')}
+        print(f"[UPLOAD] Enviando petición POST...")
         
-        response = requests.post(f"{BACKEND_API_URL}/api/risk/upload-model", files=files, timeout=60)
+        response = requests.post(f"{BACKEND_API_URL}/api/risk/upload-model", files=files, timeout=120)
+        print(f"[UPLOAD] Respuesta recibida: status_code={response.status_code}")
+        print(f"[UPLOAD] Respuesta: {response.text[:500]}")  # Limit response text to avoid huge output
         
         if response.status_code == 200:
             return True, "Model uploaded successfully"
         else:
-            return False, f"Upload failed (status {response.status_code}): {response.text}"
+            return False, f"Upload failed (status {response.status_code}): {response.text[:500]}"
+    except requests.exceptions.Timeout:
+        error_msg = "Timeout: El backend tardó demasiado en responder. El modelo podría ser muy grande o el backend estar sobrecargado."
+        print(f"[UPLOAD] ERROR: {error_msg}")
+        return False, error_msg
+    except requests.exceptions.ConnectionError as e:
+        error_msg = f"Error de conexión: {str(e)}. El backend podría no estar corriendo."
+        print(f"[UPLOAD] ERROR: {error_msg}")
+        return False, error_msg
     except Exception as e:
         import traceback
         error_details = f"{str(e)}\n\nTraceback:\n{traceback.format_exc()}"
+        print(f"[UPLOAD] ERROR: {error_details}")
         return False, f"Upload error: {error_details}"
 
 def load_data():
