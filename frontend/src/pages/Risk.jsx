@@ -831,7 +831,7 @@ export default function Risk() {
                         {(client.score * 100).toFixed(0)}%
                       </td>
                       <td className="py-2 px-2 text-center">
-                        <RiskBadge nivel={client.nivel} />
+                        <RiskBadge nivel={client.nivel_ml || client.nivel} />
                       </td>
                       <td className="py-2 px-2 text-right font-tabular">
                         {(client.pct_facturas_vencidas * 100).toFixed(1)}%
@@ -879,7 +879,7 @@ export default function Risk() {
                             {(client.score * 100).toFixed(1)}%
                           </td>
                           <td className="py-3 px-4">
-                            <RiskBadge nivel={client.nivel} />
+                            <RiskBadge nivel={client.nivel_ml || client.nivel} />
                           </td>
                           <td className={`py-3 px-4 capitalize ${theme === "dark" ? "text-ink-400" : "text-ink-600"}`}>
                             {client.metodo === "sin_historial" ? t("risk.noHistory") : (client.metodo === "heuristica" ? t("risk.heuristic") : t("risk.model"))}

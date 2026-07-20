@@ -273,9 +273,15 @@ class RiskService:
         if ml_score is not None:
             score = ml_score
             metodo = "modelo"
+            nivel_ml = nivel_desde_score(ml_score)
         else:
             score = heuristic_score(features)
             metodo = "heuristica"
+            nivel_ml = None
+
+        # Always calculate heuristic level for comparison
+        heuristic_score_value = heuristic_score(features)
+        nivel_heuristico = nivel_desde_score(heuristic_score_value)
 
         return ClientRiskResponse(
             client_id=client.id,
@@ -283,6 +289,8 @@ class RiskService:
             score=score,
             nivel=nivel_desde_score(score),
             metodo=metodo,
+            nivel_heuristico=nivel_heuristico,
+            nivel_ml=nivel_ml,
             factores=RiskFactors(
                 pct_facturas_vencidas=features.pct_facturas_vencidas,
                 pct_pagos_tardios=features.pct_pagos_tardios,
@@ -417,10 +425,13 @@ class RiskService:
         try:
             riesgo = self.score_client(client_id)
             
-            if riesgo.nivel == "bajo":
+            # Use heuristic level for credit limits (more conservative, based on actual behavior)
+            nivel_para_limite = riesgo.nivel_heuristico if riesgo.nivel_heuristico else riesgo.nivel
+            
+            if nivel_para_limite == "bajo":
                 limite = 10000  # S/ 10,000
                 justificacion = "Cliente con bajo riesgo de morosidad. Límite de crédito alto."
-            elif riesgo.nivel == "medio":
+            elif nivel_para_limite == "medio":
                 limite = 5000  # S/ 5,000
                 justificacion = "Cliente con riesgo medio de morosidad. Límite de crédito moderado."
             else:  # alto
@@ -430,7 +441,7 @@ class RiskService:
             return {
                 "client_id": client_id,
                 "limite_sugerido": limite,
-                "nivel_riesgo": riesgo.nivel,
+                "nivel_riesgo": nivel_para_limite,
                 "score_riesgo": riesgo.score,
                 "justificacion": justificacion,
                 "factores": {

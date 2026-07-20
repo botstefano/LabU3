@@ -197,7 +197,7 @@ export default function Clients() {
             
             <div className={`mb-4 rounded-lg p-3 ${theme === "dark" ? "bg-ink-700" : "bg-white"}`}>
               <p className={`text-sm font-medium mb-2 ${theme === "dark" ? "text-white" : "text-ink-900"}`}>
-                Nivel de riesgo: {creditLimit.nivel_riesgo.toUpperCase()}
+                Nivel de riesgo (heurístico): {creditLimit.nivel_riesgo.toUpperCase()}
               </p>
               <p className={`text-sm ${theme === "dark" ? "text-ink-400" : "text-ink-600"}`}>
                 Score de riesgo: {(creditLimit.score_riesgo * 100).toFixed(0)}%

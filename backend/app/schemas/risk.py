@@ -19,6 +19,8 @@ class ClientRiskResponse(BaseModel):
     score: float
     nivel: str
     metodo: str
+    nivel_heuristico: Optional[str] = None  # Nivel calculado por heurística
+    nivel_ml: Optional[str] = None  # Nivel calculado por modelo ML
     factores: Optional[RiskFactors] = None
 
 
