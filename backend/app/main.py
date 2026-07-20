@@ -41,11 +41,6 @@ app.add_middleware(
 
 app.add_exception_handler(AppError, app_error_handler)
 
-print("[MAIN] Including routers...")
-print(f"[MAIN] risk_router: {risk_router}")
-print(f"[MAIN] risk_router.router: {risk_router.router}")
-print(f"[MAIN] risk_router.router prefix: {risk_router.router.prefix}")
-
 app.include_router(auth_router.router)
 app.include_router(client_router.router)
 app.include_router(invoice_router.router)
@@ -54,9 +49,12 @@ app.include_router(dashboard_router.router)
 app.include_router(reports_router.router)
 app.include_router(settings_router.router)
 app.include_router(risk_router.router)
-print("[MAIN] risk_router included successfully")
 app.include_router(chat_router.router)
-print("[MAIN] All routers included successfully")
+
+
+@app.get("/")
+def root():
+    return {"message": "Backend is running", "status": "ok"}
 
 
 @app.get("/api/health", tags=["Sistema"])

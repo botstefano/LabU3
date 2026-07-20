@@ -274,10 +274,12 @@ class RiskService:
             score = ml_score
             metodo = "modelo"
             nivel_ml = nivel_desde_score(ml_score)
+            print(f"[RISK] Client {client.nombre_razon_social}: ML score={ml_score:.3f}, features={features}")
         else:
             score = heuristic_score(features)
             metodo = "heuristica"
             nivel_ml = None
+            print(f"[RISK] Client {client.nombre_razon_social}: Heuristic score={score:.3f}, features={features}")
 
         # Always calculate heuristic level for comparison
         heuristic_score_value = heuristic_score(features)

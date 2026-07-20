@@ -87,14 +87,7 @@ def upload_model_to_backend(model_path):
         # Upload to backend
         files = {'file': ('risk_model.joblib', model_buffer, 'application/octet-stream')}
         
-        upload_url = f"{BACKEND_API_URL}/api/risk/upload-model"
-        print(f"[UPLOAD] Upload URL: {upload_url}")
-        print(f"[UPLOAD] BACKEND_API_URL: {BACKEND_API_URL}")
-        
-        response = requests.post(upload_url, files=files, timeout=60)
-        
-        print(f"[UPLOAD] Response status code: {response.status_code}")
-        print(f"[UPLOAD] Response body: {response.text}")
+        response = requests.post(f"{BACKEND_API_URL}/api/risk/upload-model", files=files, timeout=60)
         
         if response.status_code == 200:
             return True, "Model uploaded successfully"
@@ -103,7 +96,6 @@ def upload_model_to_backend(model_path):
     except Exception as e:
         import traceback
         error_details = f"{str(e)}\n\nTraceback:\n{traceback.format_exc()}"
-        print(f"[UPLOAD] Upload error: {error_details}")
         return False, f"Upload error: {error_details}"
 
 def load_data():
@@ -1446,13 +1438,8 @@ def main():
                 
                 result = compare_models(dataset)
                 
-                print("[UPLOAD] compare_models completed successfully")
-                print(f"[UPLOAD] Best model: {result.best_model}")
-                
                 status_text.text("💾 Guardando mejor modelo...")
                 progress_bar.progress(95, text="Guardando mejor modelo...")
-                
-                print("[UPLOAD] Starting train_model_with_type_incremental")
                 
                 # Save best model for production (incremental if from DB)
                 from app.ml.risk_model import train_model_with_type_incremental
@@ -1475,16 +1462,8 @@ def main():
                 status_text.text("📤 Subiendo modelo al backend...")
                 progress_bar.progress(98, text="Subiendo modelo al backend...")
                 
-                print("[UPLOAD] Starting model upload process")
-                
                 from app.ml.risk_model import MODEL_PATH
-                print(f"[UPLOAD] Model path: {MODEL_PATH}")
-                print(f"[UPLOAD] Model exists: {MODEL_PATH.exists()}")
-                
                 upload_success, upload_message = upload_model_to_backend(MODEL_PATH)
-                
-                print(f"[UPLOAD] Upload success: {upload_success}")
-                print(f"[UPLOAD] Upload message: {upload_message}")
                 
                 if upload_success:
                     st.info(f"✅ {upload_message}")

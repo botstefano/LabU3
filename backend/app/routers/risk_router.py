@@ -25,38 +25,22 @@ def upload_trained_model(
     file: UploadFile = File(...)
 ):
     """Receive trained model from Streamlit and save it for backend use"""
-    logger.info("[BACKEND] Upload model endpoint called")
     try:
         # Read the model file
         model_data = file.file.read()
-        logger.info(f"[BACKEND] Received model file, size: {len(model_data)} bytes")
         
         # Save to backend model path
         model_path = Path(__file__).parent.parent / "ml" / "model_artifacts" / "risk_model.joblib"
         model_path.parent.mkdir(parents=True, exist_ok=True)
-        logger.info(f"[BACKEND] Target path: {model_path}")
-        logger.info(f"[BACKEND] Path exists before: {model_path.exists()}")
         
         # Load and save the model
         model = joblib.load(io.BytesIO(model_data))
         joblib.dump(model, model_path)
         
-        logger.info(f"[BACKEND] Model saved successfully")
-        logger.info(f"[BACKEND] Path exists after: {model_path.exists()}")
-        logger.info(f"[BACKEND] File size: {model_path.stat().st_size if model_path.exists() else 0} bytes")
-        
         return {"message": "Model uploaded successfully", "path": str(model_path)}
     except Exception as e:
         import traceback
-        logger.error(f"[BACKEND] Error uploading model: {str(e)}")
-        logger.error(f"[BACKEND] Traceback: {traceback.format_exc()}")
         return {"error": str(e)}, 400
-
-
-@router.get("/upload-model-test")
-def test_upload_endpoint():
-    """Test endpoint to verify upload-model route is accessible"""
-    return {"message": "Upload model route is working", "status": "ok"}
 
 
 @router.post("/train", response_model=TrainRiskResponse)
