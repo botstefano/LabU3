@@ -1464,8 +1464,10 @@ def main():
                 
                 if upload_success:
                     st.info(f"✅ {upload_message}")
+                    st.session_state.upload_status = "success"
                 else:
                     st.warning(f"⚠️ {upload_message}")
+                    st.session_state.upload_status = "failed"
 
                 progress_bar.progress(100, text="✅ Entrenamiento completado!")
                 status_text.text("✅ Entrenamiento completado exitosamente!")
@@ -1480,7 +1482,14 @@ def main():
                 st.error(f"❌ Error durante el entrenamiento: {str(e)}")
 
         if 'result' in st.session_state:
-            st.success("✅ Modelo entrenado. Ve a la sección 'Resultados' para ver el análisis completo.")
+            upload_status = st.session_state.get('upload_status', 'unknown')
+            if upload_status == 'success':
+                st.success("✅ Modelo entrenado y subido al backend exitosamente.")
+            elif upload_status == 'failed':
+                st.warning("⚠️ Modelo entrenado pero no se pudo subir al backend.")
+            else:
+                st.success("✅ Modelo entrenado.")
+            
             if st.button("Ver Resultados →", type="secondary", width='stretch'):
                 st.session_state.page = "📋 Resultados"
                 st.rerun()
