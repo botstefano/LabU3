@@ -300,7 +300,13 @@ def predict_proba(features: ClientFeatures) -> Optional[float]:
 
     pipeline = joblib.load(MODEL_PATH)
     X = np.array([features_to_vector(features)])
+    print(f"[PREDICT] Input features vector: {X}")
+    print(f"[PREDICT] Pipeline: {pipeline}")
+    print(f"[PREDICT] Pipeline steps: {pipeline.named_steps}")
+    
     proba = pipeline.predict_proba(X)[0]
+    print(f"[PREDICT] Raw probabilities: {proba}")
+    print(f"[PREDICT] Selected probability (class 1): {proba[1]}")
 
     return float(proba[1])
 
