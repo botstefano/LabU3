@@ -132,16 +132,15 @@ def _build_pipeline(model_type: Literal["logistic", "random_forest", "svm", "gra
             ))
         ])
     elif model_type == "mlp":
-        # Disable early_stopping for cross-validation context
-        # Cross-validation already provides validation, so early_stopping is redundant
         return Pipeline([
             ("scaler", StandardScaler()),
             ("classifier", MLPClassifier(
                 hidden_layer_sizes=(64, 32),
-                max_iter=1000,
+                max_iter=500,  # Reduce from 1000 to 500 for faster training
                 random_state=42,
-                early_stopping=False,
-                n_iter_no_change=20
+                early_stopping=True,
+                validation_fraction=0.1,
+                n_iter_no_change=10
             ))
         ])
     else:
