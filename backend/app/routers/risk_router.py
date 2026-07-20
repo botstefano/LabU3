@@ -3,6 +3,7 @@ from typing import List
 from uuid import UUID
 import joblib
 import io
+import logging
 
 from fastapi import APIRouter, Depends, UploadFile, File
 from sqlalchemy.orm import Session
@@ -14,6 +15,8 @@ from app.schemas.risk import ClientRiskResponse, TrainRiskResponse, TrainingStat
 from app.services.risk_service import RiskService
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/risk", tags=["Riesgo de Morosidad (IA)"])
 
 
@@ -22,31 +25,31 @@ def upload_trained_model(
     file: UploadFile = File(...)
 ):
     """Receive trained model from Streamlit and save it for backend use"""
+    logger.info("[BACKEND] Upload model endpoint called")
     try:
         # Read the model file
         model_data = file.file.read()
+        logger.info(f"[BACKEND] Received model file, size: {len(model_data)} bytes")
         
         # Save to backend model path
         model_path = Path(__file__).parent.parent / "ml" / "model_artifacts" / "risk_model.joblib"
         model_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        print(f"[BACKEND] Received model file, size: {len(model_data)} bytes")
-        print(f"[BACKEND] Target path: {model_path}")
-        print(f"[BACKEND] Path exists before: {model_path.exists()}")
+        logger.info(f"[BACKEND] Target path: {model_path}")
+        logger.info(f"[BACKEND] Path exists before: {model_path.exists()}")
         
         # Load and save the model
         model = joblib.load(io.BytesIO(model_data))
         joblib.dump(model, model_path)
         
-        print(f"[BACKEND] Model saved successfully")
-        print(f"[BACKEND] Path exists after: {model_path.exists()}")
-        print(f"[BACKEND] File size: {model_path.stat().st_size if model_path.exists() else 0} bytes")
+        logger.info(f"[BACKEND] Model saved successfully")
+        logger.info(f"[BACKEND] Path exists after: {model_path.exists()}")
+        logger.info(f"[BACKEND] File size: {model_path.stat().st_size if model_path.exists() else 0} bytes")
         
         return {"message": "Model uploaded successfully", "path": str(model_path)}
     except Exception as e:
         import traceback
-        print(f"[BACKEND] Error uploading model: {str(e)}")
-        print(f"[BACKEND] Traceback: {traceback.format_exc()}")
+        logger.error(f"[BACKEND] Error uploading model: {str(e)}")
+        logger.error(f"[BACKEND] Traceback: {traceback.format_exc()}")
         return {"error": str(e)}, 400
 
 
