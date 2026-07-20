@@ -99,7 +99,7 @@ class CompareModelsResult:
     feature_importance_stability: Optional[Dict[str, Dict[str, float]]] = None
 
 
-def _build_pipeline(model_type: Literal["logistic", "random_forest", "svm", "gradient_boosting", "mlp"], min_class_size: int = None) -> Pipeline:
+def _build_pipeline(model_type: Literal["logistic", "random_forest", "svm", "gradient_boosting", "mlp"]) -> Pipeline:
     """Build pipeline for different model types"""
     if model_type == "logistic":
         return Pipeline([
@@ -132,18 +132,16 @@ def _build_pipeline(model_type: Literal["logistic", "random_forest", "svm", "gra
             ))
         ])
     elif model_type == "mlp":
-        # Disable early_stopping when there are very few samples per class
-        use_early_stopping = min_class_size is None or min_class_size >= 10
-        
+        # Disable early_stopping for cross-validation context
+        # Cross-validation already provides validation, so early_stopping is redundant
         return Pipeline([
             ("scaler", StandardScaler()),
             ("classifier", MLPClassifier(
                 hidden_layer_sizes=(64, 32),
                 max_iter=1000,
                 random_state=42,
-                early_stopping=use_early_stopping,
-                validation_fraction=0.1 if use_early_stopping else 0.0,
-                n_iter_no_change=10 if use_early_stopping else 20
+                early_stopping=False,
+                n_iter_no_change=20
             ))
         ])
     else:
@@ -267,21 +265,18 @@ def train_model(dataset: List[ClientFeatures]) -> TrainResult:
 
     X = np.array([features_to_vector(f) for f in dataset])
     y = np.array([f.label for f in dataset])
-    
-    # Calculate min_class_size for MLP
-    min_class_size = min(np.sum(y == 0), np.sum(y == 1))
 
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42, stratify=y
     )
 
-    pipeline = _build_pipeline("logistic", min_class_size)
+    pipeline = _build_pipeline("logistic")
     pipeline.fit(X_train, y_train)
 
     # Compute detailed metrics
     metrics = _compute_metrics(pipeline, X_test, y_test)
 
-    pipeline_final = _build_pipeline("logistic", min_class_size)
+    pipeline_final = _build_pipeline("logistic")
     pipeline_final.fit(X, y)
 
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -707,7 +702,7 @@ def compare_models(dataset: List[ClientFeatures]) -> CompareModelsResult:
     for model_type, model_name in models_config.items():
         print(f"Evaluating {model_name}...", flush=True)
         
-        pipeline = _build_pipeline(model_type, min_class_size)
+        pipeline = _build_pipeline(model_type)
         
         # Measure training time
         start_time = time.time()
@@ -893,20 +888,17 @@ def train_model_with_type(dataset: List[ClientFeatures], model_type: str = "logi
     eda = _compute_eda(dataset)
     X = np.array([features_to_vector(f) for f in dataset])
     y = np.array([f.label for f in dataset])
-    
-    # Calculate min_class_size for MLP
-    min_class_size = min(np.sum(y == 0), np.sum(y == 1))
 
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42, stratify=y
     )
 
-    pipeline = _build_pipeline(model_type, min_class_size)
+    pipeline = _build_pipeline(model_type)
     pipeline.fit(X_train, y_train)
 
     metrics = _compute_metrics(pipeline, X_test, y_test)
 
-    pipeline_final = _build_pipeline(model_type, min_class_size)
+    pipeline_final = _build_pipeline(model_type)
     pipeline_final.fit(X, y)
 
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)

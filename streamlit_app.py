@@ -1177,7 +1177,7 @@ def main():
 
         data_source = st.radio(
             "Selecciona la fuente de datos para el entrenamiento:",
-            ["📊 Base de Datos (Incremental)", "📄 Archivo CSV (Primer entrenamiento)"],
+            ["📄 Archivo CSV (Primer entrenamiento)", "📊 Base de Datos (Incremental)"],
             horizontal=True,
             label_visibility="visible"
         )
