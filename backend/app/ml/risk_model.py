@@ -558,18 +558,17 @@ def _compute_variance_analysis(results: List[ModelComparisonResult]) -> Dict[str
 
 
 def _compute_learning_curves(X: np.ndarray, y: np.ndarray, models_config: Dict[str, str]) -> Dict[str, Dict[str, List[float]]]:
-    """Compute learning curves for all models (simplified for speed)"""
+    """Compute learning curves for all models"""
     learning_curves = {}
     
-    # Reduce train sizes and cv for faster computation
-    train_sizes = np.linspace(0.3, 1.0, 5)  # Only 5 points instead of 10
+    train_sizes = np.linspace(0.1, 1.0, 10)
     
     for model_type, model_name in models_config.items():
         try:
             pipeline = _build_pipeline(model_type)
             
             train_sizes_abs, train_scores, val_scores = learning_curve(
-                pipeline, X, y, cv=3, n_jobs=-1,  # Reduce cv from 5 to 3
+                pipeline, X, y, cv=5, n_jobs=-1,
                 train_sizes=train_sizes, scoring='f1'
             )
             
@@ -587,7 +586,7 @@ def _compute_learning_curves(X: np.ndarray, y: np.ndarray, models_config: Dict[s
 
 
 def _compute_calibration_curves(X: np.ndarray, y: np.ndarray, predictions: Dict[str, np.ndarray], models_config: Dict[str, str]) -> Dict[str, Dict[str, List[float]]]:
-    """Compute calibration curves for models that support predict_proba (simplified for speed)"""
+    """Compute calibration curves for models that support predict_proba"""
     calibration_curves = {}
     
     for model_type, model_name in models_config.items():
@@ -597,8 +596,7 @@ def _compute_calibration_curves(X: np.ndarray, y: np.ndarray, predictions: Dict[
             
             if hasattr(pipeline, 'predict_proba'):
                 prob_pos = pipeline.predict_proba(X)[:, 1]
-                # Reduce bins from 10 to 5 for faster computation
-                fraction_of_positives, mean_predicted_value = calibration_curve(y, prob_pos, n_bins=5)
+                fraction_of_positives, mean_predicted_value = calibration_curve(y, prob_pos, n_bins=10)
                 
                 calibration_curves[model_name] = {
                     "fraction_of_positives": fraction_of_positives.tolist(),
@@ -821,11 +819,10 @@ def compare_models(dataset: List[ClientFeatures]) -> CompareModelsResult:
     
     mcnemar_tests = _compute_mcnemar_tests(y, out_of_fold_predictions, best_model) if out_of_fold_predictions is not None else {}
     
-    # Bootstrap confidence intervals for all models (simplified for speed)
+    # Bootstrap confidence intervals for all models
     bootstrap_intervals = {}
     for result in results:
-        # Reduce bootstrap samples from 1000 to 100 for faster computation
-        lower, upper = _compute_bootstrap_intervals(result.f1_scores, n_bootstrap=100)
+        lower, upper = _compute_bootstrap_intervals(result.f1_scores)
         bootstrap_intervals[result.model_name] = {
             "f1_lower": lower,
             "f1_upper": upper
