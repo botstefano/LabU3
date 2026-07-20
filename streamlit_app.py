@@ -1421,6 +1421,7 @@ def main():
                     max_value=300,
                     value=100,
                     step=50,
+                    key="rf_n_estimators",
                     help="⚡ Mayor valor: Mejor precisión (+), más lento (-). Menor valor: Más rápido (+), menos preciso (-)."
                 )
                 
@@ -1428,6 +1429,7 @@ def main():
                     "Profundidad máxima (max_depth)",
                     options=["Sin límite", 10, 20, 30],
                     index=0,
+                    key="rf_max_depth",
                     help="🎯 Sin límite: Máxima precisión (+), riesgo de overfitting (-). 10-20: Buen balance (+)."
                 )
                 
@@ -1436,6 +1438,7 @@ def main():
                     min_value=2,
                     max_value=20,
                     value=2,
+                    key="rf_min_samples_split",
                     help="🛡️ Mayor valor: Menos overfitting (+), más rápido (+). Menor valor: Más preciso (+), más lento (-)."
                 )
                 
@@ -1444,6 +1447,7 @@ def main():
                     min_value=1,
                     max_value=10,
                     value=1,
+                    key="rf_min_samples_leaf",
                     help="🛡️ Mayor valor: Menos overfitting (+), más rápido (+). Menor valor: Más preciso (+), más lento (-)."
                 )
                 
@@ -1451,6 +1455,7 @@ def main():
                     "Máximo features por split (max_features)",
                     options=["sqrt", "log2", None],
                     index=0,
+                    key="rf_max_features",
                     help="🎯 sqrt: Buen balance (+). log2: Más conservador (+). None: Todas las features (+), más lento (-)."
                 )
             
@@ -1463,6 +1468,7 @@ def main():
                     max_value=300,
                     value=100,
                     step=50,
+                    key="gb_n_estimators",
                     help="⚡ Mayor valor: Mejor precisión (+), más lento (-). Menor valor: Más rápido (+), menos preciso (-)."
                 )
                 
@@ -1473,6 +1479,7 @@ def main():
                     value=0.1,
                     step=0.01,
                     format="%.2f",
+                    key="gb_learning_rate",
                     help="📊 Menor valor: Mejor precisión (+), más lento (-). Mayor valor: Más rápido (+), menos preciso (-)."
                 )
                 
@@ -1481,6 +1488,7 @@ def main():
                     min_value=3,
                     max_value=10,
                     value=3,
+                    key="gb_max_depth",
                     help="🎯 Mayor valor: Más preciso (+), más lento (-), riesgo de overfitting (-). Menor valor: Más rápido (+), menos preciso (-)."
                 )
                 
@@ -1491,6 +1499,7 @@ def main():
                     value=1.0,
                     step=0.1,
                     format="%.1f",
+                    key="gb_subsample",
                     help="🛡️ Menor valor: Menos overfitting (+), más rápido (+). Mayor valor: Más preciso (+), más lento (-)."
                 )
             
@@ -1505,6 +1514,7 @@ def main():
                     max_value=2000,
                     value=1000,
                     step=100,
+                    key="lr_max_iter",
                     help="🔄 Mayor valor: Mejor convergencia (+), más lento (-). Menor valor: Más rápido (+), puede no converger (-)."
                 )
                 
@@ -1512,6 +1522,7 @@ def main():
                     "Regularización (C)",
                     options=[0.1, 1.0, 10.0],
                     index=1,
+                    key="lr_C",
                     help="🎯 Menor valor: Más regularización (+), menos overfitting (+). Mayor valor: Menos regularización (-), más preciso (+)."
                 )
             
@@ -1524,6 +1535,7 @@ def main():
                     max_value=2000,
                     value=1000,
                     step=100,
+                    key="mlp_max_iter",
                     help="🔄 Mayor valor: Mejor convergencia (+), más lento (-). Menor valor: Más rápido (+), puede no converger (-)."
                 )
                 
@@ -1531,6 +1543,7 @@ def main():
                     "Regularización (alpha)",
                     options=[0.0001, 0.001, 0.01],
                     index=1,
+                    key="mlp_alpha",
                     help="🎯 Mayor valor: Más regularización (+), menos overfitting (+). Menor valor: Menos regularización (-), más preciso (+)."
                 )
             
