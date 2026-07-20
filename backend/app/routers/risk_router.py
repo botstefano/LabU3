@@ -20,6 +20,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/risk", tags=["Riesgo de Morosidad (IA)"])
 
 
+@router.get("/test")
+def test_endpoint():
+    """Test endpoint to verify router is working"""
+    return {"message": "Router is working", "status": "ok"}
+
+
 @router.post("/upload-model")
 def upload_trained_model(
     file: UploadFile = File(...)
