@@ -106,8 +106,7 @@ def get_credit_limit_suggestion(
 
 @router.post("/upload-model")
 def upload_trained_model(
-    file: UploadFile = File(...),
-    _: User = Depends(require_roles(UserRole.ADMINISTRADOR, UserRole.CONTADOR)),
+    file: UploadFile = File(...)
 ):
     """Receive trained model from Streamlit and save it for backend use"""
     try:
