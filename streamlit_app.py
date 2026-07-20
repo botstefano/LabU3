@@ -1438,8 +1438,13 @@ def main():
                 
                 result = compare_models(dataset)
                 
+                print("[UPLOAD] compare_models completed successfully")
+                print(f"[UPLOAD] Best model: {result.best_model}")
+                
                 status_text.text("💾 Guardando mejor modelo...")
                 progress_bar.progress(95, text="Guardando mejor modelo...")
+                
+                print("[UPLOAD] Starting train_model_with_type_incremental")
                 
                 # Save best model for production (incremental if from DB)
                 from app.ml.risk_model import train_model_with_type_incremental
