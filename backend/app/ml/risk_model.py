@@ -136,7 +136,7 @@ def _build_pipeline(model_type: Literal["logistic", "random_forest", "svm", "gra
             ("scaler", StandardScaler()),
             ("classifier", MLPClassifier(
                 hidden_layer_sizes=(64, 32),
-                max_iter=500,  # Reduce from 1000 to 500 for faster training
+                max_iter=1000,
                 random_state=42,
                 early_stopping=True,
                 validation_fraction=0.1,
