@@ -87,24 +87,16 @@ def upload_model_to_backend(model_path):
         # Upload to backend
         files = {'file': ('risk_model.joblib', model_buffer, 'application/octet-stream')}
         
-        print(f"[UPLOAD] Attempting to upload model to {BACKEND_API_URL}/api/risk/upload-model")
-        print(f"[UPLOAD] Model path: {model_path}")
-        print(f"[UPLOAD] Model exists: {model_path.exists()}")
-        
         response = requests.post(f"{BACKEND_API_URL}/api/risk/upload-model", files=files, timeout=60)
-        
-        print(f"[UPLOAD] Response status code: {response.status_code}")
-        print(f"[UPLOAD] Response body: {response.text}")
         
         if response.status_code == 200:
             return True, "Model uploaded successfully"
         else:
-            return False, f"Upload failed: {response.text}"
+            return False, f"Upload failed (status {response.status_code}): {response.text}"
     except Exception as e:
-        print(f"[UPLOAD] Upload error: {str(e)}")
         import traceback
-        print(f"[UPLOAD] Traceback: {traceback.format_exc()}")
-        return False, f"Upload error: {str(e)}"
+        error_details = f"{str(e)}\n\nTraceback:\n{traceback.format_exc()}"
+        return False, f"Upload error: {error_details}"
 
 def load_data():
     """Load data from database"""
@@ -1478,6 +1470,7 @@ def main():
                     st.session_state.upload_status = "success"
                 else:
                     st.warning(f"⚠️ {upload_message}")
+                    st.error(f"❌ Detalles del error: {upload_message}")
                     st.session_state.upload_status = "failed"
 
                 progress_bar.progress(100, text="✅ Entrenamiento completado!")

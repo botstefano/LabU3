@@ -17,6 +17,39 @@ from pathlib import Path
 router = APIRouter(prefix="/api/risk", tags=["Riesgo de Morosidad (IA)"])
 
 
+@router.post("/upload-model")
+def upload_trained_model(
+    file: UploadFile = File(...)
+):
+    """Receive trained model from Streamlit and save it for backend use"""
+    try:
+        # Read the model file
+        model_data = file.file.read()
+        
+        # Save to backend model path
+        model_path = Path(__file__).parent.parent / "ml" / "model_artifacts" / "risk_model.joblib"
+        model_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        print(f"[BACKEND] Received model file, size: {len(model_data)} bytes")
+        print(f"[BACKEND] Target path: {model_path}")
+        print(f"[BACKEND] Path exists before: {model_path.exists()}")
+        
+        # Load and save the model
+        model = joblib.load(io.BytesIO(model_data))
+        joblib.dump(model, model_path)
+        
+        print(f"[BACKEND] Model saved successfully")
+        print(f"[BACKEND] Path exists after: {model_path.exists()}")
+        print(f"[BACKEND] File size: {model_path.stat().st_size if model_path.exists() else 0} bytes")
+        
+        return {"message": "Model uploaded successfully", "path": str(model_path)}
+    except Exception as e:
+        import traceback
+        print(f"[BACKEND] Error uploading model: {str(e)}")
+        print(f"[BACKEND] Traceback: {traceback.format_exc()}")
+        return {"error": str(e)}, 400
+
+
 @router.post("/train", response_model=TrainRiskResponse)
 def train_model(
     db: Session = Depends(get_db),
@@ -102,26 +135,4 @@ def get_credit_limit_suggestion(
     current_user: User = Depends(get_current_user),
 ):
     return RiskService(db).sugerir_limite_credito(str(client_id))
-
-
-@router.post("/upload-model")
-def upload_trained_model(
-    file: UploadFile = File(...)
-):
-    """Receive trained model from Streamlit and save it for backend use"""
-    try:
-        # Read the model file
-        model_data = file.file.read()
-        
-        # Save to backend model path
-        model_path = Path(__file__).parent.parent / "ml" / "model_artifacts" / "risk_model.joblib"
-        model_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Load and save the model
-        model = joblib.load(io.BytesIO(model_data))
-        joblib.dump(model, model_path)
-        
-        return {"message": "Model uploaded successfully", "path": str(model_path)}
-    except Exception as e:
-        return {"error": str(e)}, 400
 
