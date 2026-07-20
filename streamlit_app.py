@@ -87,7 +87,14 @@ def upload_model_to_backend(model_path):
         # Upload to backend
         files = {'file': ('risk_model.joblib', model_buffer, 'application/octet-stream')}
         
-        response = requests.post(f"{BACKEND_API_URL}/api/risk/upload-model", files=files, timeout=60)
+        upload_url = f"{BACKEND_API_URL}/api/risk/upload-model"
+        print(f"[UPLOAD] Upload URL: {upload_url}")
+        print(f"[UPLOAD] BACKEND_API_URL: {BACKEND_API_URL}")
+        
+        response = requests.post(upload_url, files=files, timeout=60)
+        
+        print(f"[UPLOAD] Response status code: {response.status_code}")
+        print(f"[UPLOAD] Response body: {response.text}")
         
         if response.status_code == 200:
             return True, "Model uploaded successfully"
@@ -96,6 +103,7 @@ def upload_model_to_backend(model_path):
     except Exception as e:
         import traceback
         error_details = f"{str(e)}\n\nTraceback:\n{traceback.format_exc()}"
+        print(f"[UPLOAD] Upload error: {error_details}")
         return False, f"Upload error: {error_details}"
 
 def load_data():
