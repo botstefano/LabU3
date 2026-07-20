@@ -1462,8 +1462,16 @@ def main():
                 status_text.text("📤 Subiendo modelo al backend...")
                 progress_bar.progress(98, text="Subiendo modelo al backend...")
                 
+                print("[UPLOAD] Starting model upload process")
+                
                 from app.ml.risk_model import MODEL_PATH
+                print(f"[UPLOAD] Model path: {MODEL_PATH}")
+                print(f"[UPLOAD] Model exists: {MODEL_PATH.exists()}")
+                
                 upload_success, upload_message = upload_model_to_backend(MODEL_PATH)
+                
+                print(f"[UPLOAD] Upload success: {upload_success}")
+                print(f"[UPLOAD] Upload message: {upload_message}")
                 
                 if upload_success:
                     st.info(f"✅ {upload_message}")
