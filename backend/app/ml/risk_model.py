@@ -99,17 +99,33 @@ class CompareModelsResult:
     feature_importance_stability: Optional[Dict[str, Dict[str, float]]] = None
 
 
-def _build_pipeline(model_type: Literal["logistic", "random_forest", "svm", "gradient_boosting", "mlp"]) -> Pipeline:
-    """Build pipeline for different model types"""
+def _build_pipeline(
+    model_type: Literal["logistic", "random_forest", "svm", "gradient_boosting", "mlp"],
+    hyperparams: Optional[Dict[str, Any]] = None
+) -> Pipeline:
+    """Build pipeline for different model types with optional custom hyperparameters"""
+    hyperparams = hyperparams or {}
+    
     if model_type == "logistic":
+        max_iter = hyperparams.get('max_iter', 1000)
+        C = hyperparams.get('C', 1.0)
         return Pipeline([
             ("scaler", StandardScaler()),
-            ("classifier", LogisticRegression(class_weight="balanced", random_state=42, max_iter=1000))
+            ("classifier", LogisticRegression(class_weight="balanced", random_state=42, max_iter=max_iter, C=C))
         ])
     elif model_type == "random_forest":
+        n_estimators = hyperparams.get('n_estimators', 100)
+        max_depth = hyperparams.get('max_depth', None)
+        min_samples_split = hyperparams.get('min_samples_split', 2)
+        min_samples_leaf = hyperparams.get('min_samples_leaf', 1)
+        max_features = hyperparams.get('max_features', 'sqrt')
         return Pipeline([
             ("classifier", RandomForestClassifier(
-                n_estimators=100,
+                n_estimators=n_estimators,
+                max_depth=max_depth,
+                min_samples_split=min_samples_split,
+                min_samples_leaf=min_samples_leaf,
+                max_features=max_features,
                 class_weight="balanced",
                 random_state=42,
                 n_jobs=-1
@@ -121,22 +137,32 @@ def _build_pipeline(model_type: Literal["logistic", "random_forest", "svm", "gra
             ("scaler", StandardScaler()),
             ("classifier", CalibratedClassifierCV(
                 SVC(class_weight="balanced", random_state=42),
-                ensemble=False
+                ensemble=True
             ))
         ])
     elif model_type == "gradient_boosting":
+        n_estimators = hyperparams.get('n_estimators', 100)
+        learning_rate = hyperparams.get('learning_rate', 0.1)
+        max_depth = hyperparams.get('max_depth', 3)
+        subsample = hyperparams.get('subsample', 1.0)
         return Pipeline([
             ("classifier", GradientBoostingClassifier(
-                n_estimators=100,
+                n_estimators=n_estimators,
+                learning_rate=learning_rate,
+                max_depth=max_depth,
+                subsample=subsample,
                 random_state=42
             ))
         ])
     elif model_type == "mlp":
+        max_iter = hyperparams.get('max_iter', 1000)
+        alpha = hyperparams.get('alpha', 0.001)
         return Pipeline([
             ("scaler", StandardScaler()),
             ("classifier", MLPClassifier(
                 hidden_layer_sizes=(64, 32),
-                max_iter=1000,
+                max_iter=max_iter,
+                alpha=alpha,
                 random_state=42,
                 early_stopping=True,
                 validation_fraction=0.1,
@@ -874,8 +900,13 @@ def compare_models(dataset: List[ClientFeatures]) -> CompareModelsResult:
     )
 
 
-def train_model_with_type(dataset: List[ClientFeatures], model_type: str = "logistic") -> TrainResult:
-    """Train a specific model type and persist it"""
+def train_model_with_type(
+    dataset: List[ClientFeatures],
+    model_type: str = "logistic",
+    hyperparams: Optional[Dict[str, Any]] = None
+) -> TrainResult:
+    """Train a specific model type and persist it with optional custom hyperparameters"""
+    hyperparams = hyperparams or {}
     n_muestras = len(dataset)
     labels = [f.label for f in dataset if f.label is not None]
     n_clase_alto_riesgo = sum(1 for l in labels if l == 1)
@@ -898,12 +929,15 @@ def train_model_with_type(dataset: List[ClientFeatures], model_type: str = "logi
         X, y, test_size=0.2, random_state=42, stratify=y
     )
 
-    pipeline = _build_pipeline(model_type)
+    # Get hyperparams for this model type
+    model_hyperparams = hyperparams.get(model_type, {})
+    pipeline = _build_pipeline(model_type, model_hyperparams)
     pipeline.fit(X_train, y_train)
 
     metrics = _compute_metrics(pipeline, X_test, y_test)
 
-    pipeline_final = _build_pipeline(model_type)
+    # Train final model on all data with same hyperparameters
+    pipeline_final = _build_pipeline(model_type, model_hyperparams)
     pipeline_final.fit(X, y)
 
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -972,9 +1006,11 @@ def combine_datasets(saved_dataset: List[ClientFeatures], new_dataset: List[Clie
 def train_model_with_type_incremental(
     new_dataset: List[ClientFeatures],
     model_type: str = "logistic",
-    use_saved: bool = True
+    use_saved: bool = True,
+    hyperparams: Optional[Dict[str, Any]] = None
 ) -> TrainResult:
-    """Train model incrementally: combine saved dataset with new data"""
+    """Train model incrementally: combine saved dataset with new data with optional custom hyperparameters"""
+    hyperparams = hyperparams or {}
     saved_dataset = load_training_dataset() if use_saved else []
     
     if saved_dataset:
@@ -987,6 +1023,6 @@ def train_model_with_type_incremental(
     # Save the combined dataset for future incremental training
     save_training_dataset(combined_dataset)
     
-    # Train with the combined dataset
-    return train_model_with_type(combined_dataset, model_type)
+    # Train with the combined dataset and custom hyperparameters
+    return train_model_with_type(combined_dataset, model_type, hyperparams)
 

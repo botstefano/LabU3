@@ -1399,6 +1399,170 @@ def main():
 
         st.divider()
 
+        # Hyperparameter configuration section
+        with st.expander("⚙️ Configuración de Hiperparámetros (Opcional)"):
+            st.markdown("""
+            <div class="info-card">
+            <b>💡 Configura hiperparámetros seguros para ajustar el balance entre velocidad y precisión.</b><br>
+            <span style="font-size:0.85rem; color:var(--app-text-secondary);">
+            Los hiperparámetros críticos que pueden causar errores se mantienen con valores óptimos por defecto.
+            </span>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            col_rf, col_gb = st.columns(2)
+            
+            with col_rf:
+                st.markdown("### 🌲 Random Forest")
+                
+                rf_n_estimators = st.slider(
+                    "Número de árboles (n_estimators)",
+                    min_value=50,
+                    max_value=300,
+                    value=100,
+                    step=50,
+                    help="⚡ Mayor valor: Mejor precisión (+), más lento (-). Menor valor: Más rápido (+), menos preciso (-)."
+                )
+                
+                rf_max_depth = st.selectbox(
+                    "Profundidad máxima (max_depth)",
+                    options=["Sin límite", 10, 20, 30],
+                    index=0,
+                    help="🎯 Sin límite: Máxima precisión (+), riesgo de overfitting (-). 10-20: Buen balance (+)."
+                )
+                
+                rf_min_samples_split = st.slider(
+                    "Mínimo muestras para dividir (min_samples_split)",
+                    min_value=2,
+                    max_value=20,
+                    value=2,
+                    help="🛡️ Mayor valor: Menos overfitting (+), más rápido (+). Menor valor: Más preciso (+), más lento (-)."
+                )
+                
+                rf_min_samples_leaf = st.slider(
+                    "Mínimo muestras por hoja (min_samples_leaf)",
+                    min_value=1,
+                    max_value=10,
+                    value=1,
+                    help="🛡️ Mayor valor: Menos overfitting (+), más rápido (+). Menor valor: Más preciso (+), más lento (-)."
+                )
+                
+                rf_max_features = st.selectbox(
+                    "Máximo features por split (max_features)",
+                    options=["sqrt", "log2", None],
+                    index=0,
+                    help="🎯 sqrt: Buen balance (+). log2: Más conservador (+). None: Todas las features (+), más lento (-)."
+                )
+            
+            with col_gb:
+                st.markdown("### 🚀 Gradient Boosting")
+                
+                gb_n_estimators = st.slider(
+                    "Número de árboles (n_estimators)",
+                    min_value=50,
+                    max_value=300,
+                    value=100,
+                    step=50,
+                    help="⚡ Mayor valor: Mejor precisión (+), más lento (-). Menor valor: Más rápido (+), menos preciso (-)."
+                )
+                
+                gb_learning_rate = st.slider(
+                    "Tasa de aprendizaje (learning_rate)",
+                    min_value=0.01,
+                    max_value=0.3,
+                    value=0.1,
+                    step=0.01,
+                    format="%.2f",
+                    help="📊 Menor valor: Mejor precisión (+), más lento (-). Mayor valor: Más rápido (+), menos preciso (-)."
+                )
+                
+                gb_max_depth = st.slider(
+                    "Profundidad máxima (max_depth)",
+                    min_value=3,
+                    max_value=10,
+                    value=3,
+                    help="🎯 Mayor valor: Más preciso (+), más lento (-), riesgo de overfitting (-). Menor valor: Más rápido (+), menos preciso (-)."
+                )
+                
+                gb_subsample = st.slider(
+                    "Subsample (subsample)",
+                    min_value=0.5,
+                    max_value=1.0,
+                    value=1.0,
+                    step=0.1,
+                    format="%.1f",
+                    help="🛡️ Menor valor: Menos overfitting (+), más rápido (+). Mayor valor: Más preciso (+), más lento (-)."
+                )
+            
+            col_lr, col_mlp = st.columns(2)
+            
+            with col_lr:
+                st.markdown("### 📈 Logistic Regression")
+                
+                lr_max_iter = st.slider(
+                    "Máximo iteraciones (max_iter)",
+                    min_value=800,
+                    max_value=2000,
+                    value=1000,
+                    step=100,
+                    help="🔄 Mayor valor: Mejor convergencia (+), más lento (-). Menor valor: Más rápido (+), puede no converger (-)."
+                )
+                
+                lr_C = st.selectbox(
+                    "Regularización (C)",
+                    options=[0.1, 1.0, 10.0],
+                    index=1,
+                    help="🎯 Menor valor: Más regularización (+), menos overfitting (+). Mayor valor: Menos regularización (-), más preciso (+)."
+                )
+            
+            with col_mlp:
+                st.markdown("### 🧠 Neural Network (MLP)")
+                
+                mlp_max_iter = st.slider(
+                    "Máximo iteraciones (max_iter)",
+                    min_value=800,
+                    max_value=2000,
+                    value=1000,
+                    step=100,
+                    help="🔄 Mayor valor: Mejor convergencia (+), más lento (-). Menor valor: Más rápido (+), puede no converger (-)."
+                )
+                
+                mlp_alpha = st.selectbox(
+                    "Regularización (alpha)",
+                    options=[0.0001, 0.001, 0.01],
+                    index=1,
+                    help="🎯 Mayor valor: Más regularización (+), menos overfitting (+). Menor valor: Menos regularización (-), más preciso (+)."
+                )
+            
+            # Store hyperparameters in session state
+            st.session_state.hyperparams = {
+                'random_forest': {
+                    'n_estimators': rf_n_estimators,
+                    'max_depth': None if rf_max_depth == "Sin límite" else rf_max_depth,
+                    'min_samples_split': rf_min_samples_split,
+                    'min_samples_leaf': rf_min_samples_leaf,
+                    'max_features': rf_max_features
+                },
+                'gradient_boosting': {
+                    'n_estimators': gb_n_estimators,
+                    'learning_rate': gb_learning_rate,
+                    'max_depth': gb_max_depth,
+                    'subsample': gb_subsample
+                },
+                'logistic_regression': {
+                    'max_iter': lr_max_iter,
+                    'C': lr_C
+                },
+                'mlp': {
+                    'max_iter': mlp_max_iter,
+                    'alpha': mlp_alpha
+                }
+            }
+            
+            st.info("ℹ️ Los hiperparámetros críticos de SVM (kernel, C, gamma), Logistic Regression (solver, penalty) y MLP (activation, solver) se mantienen con valores óptimos por defecto para evitar errores de compatibilidad.")
+
+        st.divider()
+
         # Training action
         if st.button("🚀 Entrenar y Comparar 5 Modelos", type="primary", width='stretch'):
             progress_bar = st.progress(0, text="Iniciando entrenamiento...")
@@ -1453,10 +1617,13 @@ def main():
                 }
                 best_model_type = model_type_mapping.get(result.best_model, "logistic")
 
+                # Get custom hyperparameters if configured
+                hyperparams = st.session_state.get('hyperparams', {})
+
                 if st.session_state.data_source == "Base de Datos":
-                    train_model_with_type_incremental(dataset, best_model_type, use_saved=True)
+                    train_model_with_type_incremental(dataset, best_model_type, use_saved=True, hyperparams=hyperparams)
                 else:
-                    train_model_with_type_incremental(dataset, best_model_type, use_saved=False)
+                    train_model_with_type_incremental(dataset, best_model_type, use_saved=False, hyperparams=hyperparams)
 
                 # Upload model to backend for production use
                 status_text.text("📤 Subiendo modelo al backend...")
