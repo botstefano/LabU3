@@ -40,5 +40,6 @@ class ClientUpdate(ClientBase):
 class ClientResponse(ClientBase):
     id: uuid.UUID
     created_at: datetime
+    riesgo_heuristico: Optional[dict] = None
 
     model_config = {"from_attributes": True}

@@ -147,6 +147,7 @@ export default function Clients() {
                 <th className="py-2">{t("clients.name")}</th>
                 <th className="py-2">{t("clients.docNumber")}</th>
                 <th className="py-2">{t("clients.contact")}</th>
+                <th className="py-2 text-center">Riesgo (Heurístico)</th>
                 <th className="py-2 text-center">Límite Crédito</th>
                 <th className="py-2 text-right">{t("clients.actions")}</th>
               </tr>
@@ -160,8 +161,27 @@ export default function Clients() {
                   </td>
                   <td className={`py-2.5 ${theme === "dark" ? "text-ink-400" : "text-ink-500"}`}>{cliente.email || cliente.telefono || "—"}</td>
                   <td className="py-2.5 text-center">
-                    <Button 
-                      size="sm" 
+                    {cliente.riesgo_heuristico && (
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
+                        cliente.riesgo_heuristico.nivel === 'bajo' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' :
+                        cliente.riesgo_heuristico.nivel === 'medio' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                        cliente.riesgo_heuristico.nivel === 'alto' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400' :
+                        cliente.riesgo_heuristico.nivel === 'muy_alto' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' :
+                        'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400'
+                      }`}>
+                        {cliente.riesgo_heuristico.nivel === 'sin_datos' ? 'Sin datos' :
+                         cliente.riesgo_heuristico.nivel === 'bajo' ? 'Bajo' :
+                         cliente.riesgo_heuristico.nivel === 'medio' ? 'Medio' :
+                         cliente.riesgo_heuristico.nivel === 'alto' ? 'Alto' :
+                         cliente.riesgo_heuristico.nivel === 'muy_alto' ? 'Muy Alto' :
+                         cliente.riesgo_heuristico.nivel}
+                        <span className="text-xs opacity-70">({(cliente.riesgo_heuristico.score * 100).toFixed(0)}%)</span>
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2.5 text-center">
+                    <Button
+                      size="sm"
                       variant="secondary"
                       onClick={() => handleLoadCreditLimit(cliente.id)}
                       disabled={loadingCredit}
