@@ -42,6 +42,10 @@ export default function Collections() {
       ]);
       setCartera(carteraRes.data);
       setSegmentos(segmentosRes.data);
+    } catch (err) {
+      console.error("Error cargando cobranzas:", err);
+      setCartera([]);
+      setSegmentos([]);
     } finally {
       setLoading(false);
     }

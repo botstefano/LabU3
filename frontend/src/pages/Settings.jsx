@@ -21,6 +21,10 @@ export default function Settings() {
     settingsService
       .get()
       .then((res) => setValores(res.data.valores))
+      .catch((err) => {
+        console.error("Error cargando configuración:", err);
+        setValores({});
+      })
       .finally(() => setLoading(false));
   }, []);
 

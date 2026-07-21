@@ -43,6 +43,9 @@ export default function Invoices() {
       if (params.fecha_hasta || filtros.fecha_hasta) query.fecha_hasta = params.fecha_hasta ?? filtros.fecha_hasta;
       const res = await invoiceService.list(query);
       setFacturas(res.data);
+    } catch (err) {
+      console.error("Error cargando facturas:", err);
+      setFacturas([]);
     } finally {
       setLoading(false);
     }
@@ -50,7 +53,12 @@ export default function Invoices() {
 
   useEffect(() => {
     cargarFacturas();
-    clientService.list({ limit: 200 }).then((res) => setClientes(res.data));
+    clientService.list({ limit: 200 })
+      .then((res) => setClientes(res.data))
+      .catch((err) => {
+        console.error("Error cargando clientes para facturas:", err);
+        setClientes([]);
+      });
   }, []);
 
   const aplicarFiltros = (event) => {

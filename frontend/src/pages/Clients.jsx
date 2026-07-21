@@ -39,6 +39,9 @@ export default function Clients() {
     try {
       const res = await clientService.list({ search: busqueda || undefined });
       setClientes(res.data);
+    } catch (err) {
+      console.error("Error cargando clientes:", err);
+      setClientes([]);
     } finally {
       setLoading(false);
     }

@@ -24,7 +24,13 @@ export default function Users() {
 
   const cargar = () => {
     setLoading(true);
-    authService.listUsers().then((res) => setUsuarios(res.data)).finally(() => setLoading(false));
+    authService.listUsers()
+      .then((res) => setUsuarios(res.data))
+      .catch((err) => {
+        console.error("Error cargando usuarios:", err);
+        setUsuarios([]);
+      })
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
