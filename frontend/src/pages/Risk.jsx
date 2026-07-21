@@ -854,21 +854,24 @@ export default function Risk() {
           {loading && <LoadingState />}
           {error && <ErrorState message={error} />}
 
-          {!loading && !error && clients && (
+          {!loading && !error && (
             <>
-              {clients.length === 0 ? (
-                <EmptyState title={t("risk.noClients")} description={t("risk.noClientsDesc")} />
-              ) : (
+              {clients && clients.length === 0 ? (
+                <EmptyState 
+                  title="Modelo ML no disponible" 
+                  description="Entrena un modelo en Streamlit para ver predicciones de riesgo de morosidad basadas en machine learning."
+                />
+              ) : clients && clients.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className={`border-b ${theme === "dark" ? "border-ink-800" : "border-ink-100"} text-left text-xs uppercase tracking-wide ${theme === "dark" ? "text-ink-400" : "text-ink-400"}`}>
                         <th className="py-3 pr-4">{t("risk.client")}</th>
-                        <th className="py-3 px-4 text-right">{t("risk.score")}</th>
-                        <th className="py-3 px-4">{t("risk.level")}</th>
-                        <th className="py-3 px-4">{t("risk.method")}</th>
+                        <th className="py-3 px-4 text-right">{t("riskScore")}</th>
+                        <th className="py-3 px-4">{t("riskLevel")}</th>
                         <th className="py-3 px-4 text-right">{t("risk.overdueInvoices")}</th>
-                        <th className="py-3 pl-4 text-right">{t("risk.avgOverdueDays")}</th>
+                        <th className="py-3 px-4 text-right">{t("risk.avgOverdueDays")}</th>
+                        <th className="py-3 pl-4 text-right">{t("risk.totalInvoices")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -881,20 +884,22 @@ export default function Risk() {
                           <td className="py-3 px-4">
                             <RiskBadge nivel={client.nivel_ml || client.nivel} />
                           </td>
-                          <td className={`py-3 px-4 capitalize ${theme === "dark" ? "text-ink-400" : "text-ink-600"}`}>
-                            {client.metodo === "sin_historial" ? t("risk.noHistory") : (client.metodo === "heuristica" ? t("risk.heuristic") : t("risk.model"))}
-                          </td>
                           <td className={`py-3 px-4 text-right font-tabular ${theme === "dark" ? "text-ink-400" : "text-ink-600"}`}>
                             {client.factores ? `${(client.factores.pct_facturas_vencidas * 100).toFixed(1)}%` : "-"}
                           </td>
-                          <td className={`py-3 pl-4 text-right font-tabular ${theme === "dark" ? "text-ink-400" : "text-ink-600"}`}>
+                          <td className={`py-3 px-4 text-right font-tabular ${theme === "dark" ? "text-ink-400" : "text-ink-600"}`}>
                             {client.factores ? client.factores.dias_mora_promedio.toFixed(1) : "-"}
+                          </td>
+                          <td className={`py-3 pl-4 text-right font-tabular ${theme === "dark" ? "text-ink-400" : "text-ink-600"}`}>
+                            {client.factores ? client.factores.cantidad_facturas : "-"}
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
+              ) : (
+                <EmptyState title={t("risk.noClients")} description={t("risk.noClientsDesc")} />
               )}
             </>
           )}

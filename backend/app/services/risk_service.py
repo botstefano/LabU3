@@ -233,14 +233,21 @@ class RiskService:
         return response
 
     def score_all_clients(self) -> List[ClientRiskResponse]:
+        """Score all clients using ML model if available, otherwise return empty list"""
         self.invoice_service.actualizar_estados_vencidos()
+
+        # Check if ML model is available
+        if not model_disponible():
+            return []
 
         clients = self.client_repo.list_all()
         responses: List[ClientRiskResponse] = []
 
         for client in clients:
             response = self.score_client(client.id, client=client)
-            responses.append(response)
+            # Only include clients with ML predictions
+            if response.metodo == "modelo":
+                responses.append(response)
 
         responses.sort(key=lambda r: r.score, reverse=True)
         return responses
