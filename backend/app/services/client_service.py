@@ -3,7 +3,7 @@ import uuid
 from datetime import date
 from typing import Optional, List, Dict, Any
 
-from sqlalchemy import func, and_
+from sqlalchemy import func, and_, select
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import ConflictError, NotFoundError
